@@ -1,6 +1,6 @@
 FROM alpine:latest
 
 RUN mkdir app
-COPY upstream-echo /app/upstream-echo
+COPY ./bin/upstream-echo /app/upstream-echo
 
 ENTRYPOINT ["/app/upstream-echo"]

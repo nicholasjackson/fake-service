@@ -10,7 +10,7 @@ jobs:
       - checkout
       - run: 
           name: build application
-          command: GO_ENABLED=0 GOOS=linux go build -o upstream-echo
+          command: GO_ENABLED=0 GOOS=linux go build -o bin/upstream-echo
       - persist_to_workspace:
           root: /go/src/github.com/nicholasjackson
           paths:

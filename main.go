@@ -28,6 +28,7 @@ func main() {
 		http.HandleFunc("/", downstreamHandler)
 	}
 
+	logger.Info("Starting service", "is_upstream", *isUpstream, "upstreamMessage", *upstreamMessage, "upstreamURI", *upstreamURI, "listenAddress", *listenAddress)
 	logger.Error("Error starting service", "error", http.ListenAndServe(*listenAddress, nil))
 }
 
