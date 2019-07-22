@@ -1,0 +1,54 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.12
+    environment:
+      GO111MODULE: "on"
+    working_directory: /go/src/github.com/nicholasjackson/upstream-echo
+    steps:
+      - checkout
+      - run: 
+          name: build application
+          command: GO_ENABLED=0 GOOS=linux go build -o upstream-echo
+      - persist_to_workspace:
+          root: /go/src/github.com/nicholasjackson
+          paths:
+            - upstream-echo
+  
+  release:
+    docker:
+      - image: circleci/golang:1.12
+    environment:
+      GO111MODULE: "on"
+    working_directory: /go/src/github.com/nicholasjackson/upstream-echo
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: /go/src/github.com/nicholasjackson
+      - run: 
+         name: docker login
+         command: docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
+      - run: 
+         name: docker build
+         command: docker build -t nicholasjackson/upstream-echo:${CIRCLE_TAG}
+      - run: 
+          name: docker push
+          command: docker push nicholasjackson/upstream-echo:${CIRCLE_TAG}
+
+workflows:
+  version: 2
+  build-and-release:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/
+      - release:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
