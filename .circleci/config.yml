@@ -31,7 +31,7 @@ jobs:
          command: docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
       - run: 
          name: docker build
-         command: docker build -t nicholasjackson/upstream-echo:${CIRCLE_TAG}
+         command: docker build -t nicholasjackson/upstream-echo:${CIRCLE_TAG} .
       - run: 
           name: docker push
           command: docker push nicholasjackson/upstream-echo:${CIRCLE_TAG}
