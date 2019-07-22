@@ -40,10 +40,12 @@ func downstreamHandler(rw http.ResponseWriter, r *http.Request) {
 	resp, err := http.Get(fmt.Sprintf("http://%s", *upstreamURI))
 	if err != nil {
 		logger.Error("Error communicating with upstream service", "error", err)
+		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		logger.Error("Expected status 200 from service got", "status", resp.StatusCode)
+		return
 	}
 
 	defer resp.Body.Close()
@@ -51,6 +53,7 @@ func downstreamHandler(rw http.ResponseWriter, r *http.Request) {
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logger.Error("Error reading response body", "error", err)
+		return
 	}
 
 	logger.Info("Received response from upstream", "response", string(data))
