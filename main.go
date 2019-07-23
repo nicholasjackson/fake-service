@@ -62,7 +62,7 @@ func requestHandler(rw http.ResponseWriter, r *http.Request) {
 
 	if *upstreamCall {
 		// call the upstream service
-		resp, err := http.Get(fmt.Sprintf("http://%s", *upstreamURI))
+		resp, err := defaultClient.Get(fmt.Sprintf("http://%s", *upstreamURI))
 		if err != nil {
 			logger.Error("Error communicating with upstream service", "error", err)
 			rw.WriteHeader(http.StatusInternalServerError)
