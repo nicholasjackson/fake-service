@@ -71,7 +71,15 @@ func requestHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if *upstreamCall {
-		fmt.Fprintf(rw, "%s\n###Upstream Data: %s###\n-- %s", *message, *upstreamURI, string(data))
+		// pad the response with two spaces
+		respLines := []string{}
+		for _, s := range strings.Split(string(data), "\n") {
+			respLines = append(respLines, fmt.Sprintf("  %s", s))
+		}
+
+		resp := strings.Join(respLines, "\n")
+
+		fmt.Fprintf(rw, "%s\n###Upstream Data: %s###\n%s", *message, *upstreamURI, resp)
 		return
 	}
 
