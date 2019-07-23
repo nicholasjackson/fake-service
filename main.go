@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/env"
 )
 
-var isUpstream = env.Bool("UPSTREAM", false, false, "Is the service acting as an upstream service?")
-var upstreamMessage = env.String("UPSTREAM_MESSAGE", false, "Hello from upstream service", "Message to be broadcast from upstream service")
+var upstreamCall = env.Bool("UPSTREAM_CALL", false, false, "Should we call the upstream service?")
 var upstreamURI = env.String("UPSTREAM_URI", false, "localhost:9091", "URI of the upstream service")
+
+var message = env.String("MESSAGE", false, "Hello World", "Message to be returned from service")
+
 var listenAddress = env.String("LISTEN_ADDR", false, ":9090", "IP address and port to bind service to")
 
 var logger hclog.Logger
@@ -22,48 +25,89 @@ func main() {
 
 	env.Parse()
 
-	if *isUpstream {
-		http.HandleFunc("/", upstreamHandler)
-	} else {
-		http.HandleFunc("/", downstreamHandler)
-	}
+	http.HandleFunc("/", requestHandler)
+	http.HandleFunc("/health", healthHandler)
 
-	logger.Info("Starting service", "is_upstream", *isUpstream, "upstreamMessage", *upstreamMessage, "upstreamURI", *upstreamURI, "listenAddress", *listenAddress)
+	logger.Info(
+		"Starting service",
+		"upstreamCall", *upstreamCall,
+		"message", *message,
+		"upstreamURI", *upstreamURI,
+		"listenAddress", *listenAddress)
+
 	logger.Error("Error starting service", "error", http.ListenAndServe(*listenAddress, nil))
 }
 
-// downstreamHandler handles requests when the service is acting like a downstream service
-func downstreamHandler(rw http.ResponseWriter, r *http.Request) {
-	logger.Info("Handling downstream request")
+func requestHandler(rw http.ResponseWriter, r *http.Request) {
+	logger.Info("Handling request", "request", formatRequest(r))
 
-	// call the upstream service
-	resp, err := http.Get(fmt.Sprintf("http://%s", *upstreamURI))
-	if err != nil {
-		logger.Error("Error communicating with upstream service", "error", err)
+	var data []byte
+
+	if *upstreamCall {
+		// call the upstream service
+		resp, err := http.Get(fmt.Sprintf("http://%s", *upstreamURI))
+		if err != nil {
+			logger.Error("Error communicating with upstream service", "error", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			logger.Error("Expected status 200 from service got", "status", resp.StatusCode)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		defer resp.Body.Close()
+
+		data, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			logger.Error("Error reading response body", "error", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		logger.Info("Received response from upstream", "response", string(data))
+	}
+
+	if *upstreamCall {
+		fmt.Fprintf(rw, "%s\n###Upstream Data: %s###\n-- %s", *message, *upstreamURI, string(data))
 		return
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		logger.Error("Expected status 200 from service got", "status", resp.StatusCode)
-		return
-	}
+	rw.Write([]byte(*message))
 
-	defer resp.Body.Close()
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logger.Error("Error reading response body", "error", err)
-		return
-	}
-
-	logger.Info("Received response from upstream", "response", string(data))
-
-	rw.Write(data)
 }
 
-// upstreamHandler handles requests when the service is acting like a upstream service
-func upstreamHandler(rw http.ResponseWriter, r *http.Request) {
-	logger.Info("Handling upstream request")
+func healthHandler(rw http.ResponseWriter, r *http.Request) {
+	logger.Info("Handling health request")
 
-	fmt.Fprint(rw, *upstreamMessage)
+	fmt.Fprint(rw, "OK")
+}
+
+// formatRequest generates ascii representation of a request
+func formatRequest(r *http.Request) string {
+	// Create return string
+	var request []string
+	// Add the request string
+	url := fmt.Sprintf("%v %v %v", r.Method, r.URL, r.Proto)
+	request = append(request, url)
+	// Add the host
+	request = append(request, fmt.Sprintf("Host: %v", r.Host))
+	// Loop through headers
+	for name, headers := range r.Header {
+		name = strings.ToLower(name)
+		for _, h := range headers {
+			request = append(request, fmt.Sprintf("%v: %v", name, h))
+		}
+	}
+
+	// If this is a POST, add post data
+	if r.Method == "POST" {
+		r.ParseForm()
+		request = append(request, "\n")
+		request = append(request, r.Form.Encode())
+	}
+	// Return the request as a string
+	return strings.Join(request, "\n")
 }
