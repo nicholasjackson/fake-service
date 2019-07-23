@@ -17,13 +17,20 @@ var message = env.String("MESSAGE", false, "Hello World", "Message to be returne
 
 var listenAddress = env.String("LISTEN_ADDR", false, ":9090", "IP address and port to bind service to")
 
+var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, true, "Enable HTTP connection keep alives for upstream calls")
+
 var logger hclog.Logger
+
+var defaultClient *http.Client
 
 func main() {
 
 	logger = hclog.Default()
 
 	env.Parse()
+
+	// create the httpClient
+	defaultClient = createClient()
 
 	http.HandleFunc("/", requestHandler)
 	http.HandleFunc("/health", healthHandler)
@@ -36,6 +43,16 @@ func main() {
 		"listenAddress", *listenAddress)
 
 	logger.Error("Error starting service", "error", http.ListenAndServe(*listenAddress, nil))
+}
+
+func createClient() *http.Client {
+	client := &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: !*upstreamClientKeepAlives,
+		},
+	}
+
+	return client
 }
 
 func requestHandler(rw http.ResponseWriter, r *http.Request) {
