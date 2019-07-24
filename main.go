@@ -5,9 +5,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/env"
+	"github.com/nicholasjackson/upstream-echo/timing"
 )
 
 var upstreamCall = env.Bool("UPSTREAM_CALL", false, false, "Should we call the upstream service?")
@@ -17,17 +19,32 @@ var message = env.String("MESSAGE", false, "Hello World", "Message to be returne
 
 var listenAddress = env.String("LISTEN_ADDR", false, ":9090", "IP address and port to bind service to")
 
+// Upstream client configuration
 var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, true, "Enable HTTP connection keep alives for upstream calls")
+
+// Service timing
+var timing50Percentile = env.Duration("TIMING_50_PERCENTILE", false, time.Duration(1*time.Millisecond), "Median duration for a request")
+var timing90Percentile = env.Duration("TIMING_90_PERCENTILE", false, time.Duration(1*time.Millisecond), "90 percentile duration for a request")
+var timing99Percentile = env.Duration("TIMING_99_PERCENTILE", false, time.Duration(1*time.Millisecond), "99 percentile duration for a request")
+var timingVariance = env.Float64("TIMING_VARIANCE", false, 0, "Decimal percentage variance for each request, every request will vary by a random amount to a maximum of a percentage of the total request time")
 
 var logger hclog.Logger
 
 var defaultClient *http.Client
+var requestDuration *timing.RequestDuration
 
 func main() {
 
 	logger = hclog.Default()
 
 	env.Parse()
+
+	requestDuration = timing.NewRequestDuration(
+		*timing50Percentile,
+		*timing90Percentile,
+		*timing99Percentile,
+		*timingVariance,
+	)
 
 	// create the httpClient
 	defaultClient = createClient()
@@ -40,7 +57,9 @@ func main() {
 		"upstreamCall", *upstreamCall,
 		"message", *message,
 		"upstreamURI", *upstreamURI,
-		"listenAddress", *listenAddress)
+		"listenAddress", *listenAddress,
+		"http_client_keep_alives", *upstreamClientKeepAlives,
+	)
 
 	logger.Error("Error starting service", "error", http.ListenAndServe(*listenAddress, nil))
 }
@@ -57,6 +76,9 @@ func createClient() *http.Client {
 
 func requestHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Info("Handling request", "request", formatRequest(r))
+
+	// randomize the time the request takes
+	time.Sleep(requestDuration.Calculate())
 
 	var data []byte
 

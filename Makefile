@@ -5,7 +5,7 @@ build_docker:
 	docker build -t nicholasjackson/upstream-echo:latest .
 
 run_downstream:
-	UPSTREAM_CALL=true go run main.go
+	HTTP_CLIENT_KEEP_ALIVES=false UPSTREAM_CALL=true go run main.go
 
 run_upstream_1:
 	UPSTREAM_CALL=true MESSAGE="Hello from upstream 1" UPSTREAM_URI=localhost:9092 LISTEN_ADDR=localhost:9091 go run main.go
