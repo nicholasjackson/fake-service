@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -12,8 +13,8 @@ import (
 	"github.com/nicholasjackson/upstream-echo/timing"
 )
 
-var upstreamCall = env.Bool("UPSTREAM_CALL", false, false, "Should we call the upstream service?")
-var upstreamURI = env.String("UPSTREAM_URI", false, "localhost:9091", "URI of the upstream service")
+var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs of the upstream services to call")
+var upstreamWorkers = env.Int("UPSTREAM_WORKERS", false, 1, "Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation")
 
 var message = env.String("MESSAGE", false, "Hello World", "Message to be returned from service")
 
@@ -54,9 +55,9 @@ func main() {
 
 	logger.Info(
 		"Starting service",
-		"upstreamCall", *upstreamCall,
 		"message", *message,
-		"upstreamURI", *upstreamURI,
+		"upstreamURIs", *upstreamURIs,
+		"upstreamWorkers", *upstreamWorkers,
 		"listenAddress", *listenAddress,
 		"http_client_keep_alives", *upstreamClientKeepAlives,
 	)
@@ -74,56 +75,127 @@ func createClient() *http.Client {
 	return client
 }
 
+type done struct {
+	uri  string
+	data []byte
+}
+
 func requestHandler(rw http.ResponseWriter, r *http.Request) {
 	logger.Info("Handling request", "request", formatRequest(r))
 
 	// randomize the time the request takes
 	time.Sleep(requestDuration.Calculate())
 
+	workers := *upstreamWorkers
+	workChan := make(chan string)
+	errChan := make(chan error)
+	respChan := make(chan done)
+
+	// start the workers
+	for n := 0; n < workers; n++ {
+		go worker(workChan, respChan, errChan)
+	}
+
+	// do work
+	uris := strings.Split(*upstreamURIs, ",")
+	wg := sync.WaitGroup{}
+	wg.Add(len(uris))
+
+	go func(workChan chan string) {
+		for _, uri := range uris {
+			uri = strings.Trim(uri, " ")
+
+			if uri == "" {
+				continue
+			}
+
+			workChan <- uri
+		}
+	}(workChan)
+
+	// capture responses
+	responses := []done{}
+	go func(responses *[]done, wg *sync.WaitGroup) {
+		for r := range respChan {
+			*responses = append(*responses, r)
+			wg.Done()
+		}
+	}(&responses, &wg)
+
+	// send a message when all threads are complete
+	doneChan := make(chan struct{})
+	go func(wg *sync.WaitGroup) {
+		wg.Wait()
+		doneChan <- struct{}{}
+	}(&wg)
+
+	// wait for all threads to complete or an error to be raised
+	select {
+	case err := <-errChan:
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	case <-doneChan:
+		logger.Info("All workers complete")
+	}
+
+	respLines := []string{}
+	respLines = append(respLines, *message)
+
+	// append the output from the upstreams
+	for _, r := range responses {
+		respLines = append(respLines, fmt.Sprintf("## Called upstream uri: %s", r.uri))
+		// indent the reposne from the upstream
+		lines := strings.Split(string(r.data), "\n")
+		for _, l := range lines {
+			respLines = append(respLines, fmt.Sprintf("  %s", l))
+		}
+	}
+
+	rw.Write([]byte(strings.Join(respLines, "\n")))
+}
+
+func worker(workChan chan string, respChan chan done, errChan chan error) {
+	for {
+		uri := <-workChan
+
+		resp, err := callUpstream(uri)
+		if err != nil {
+			errChan <- err
+		}
+
+		respChan <- done{uri, resp}
+	}
+}
+
+func callUpstream(uri string) ([]byte, error) {
 	var data []byte
 
-	if *upstreamCall {
-		// call the upstream service
-		resp, err := defaultClient.Get(fmt.Sprintf("http://%s", *upstreamURI))
-		if err != nil {
-			logger.Error("Error communicating with upstream service", "error", err)
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+	// call the upstream service
+	resp, err := defaultClient.Get(uri)
+	if err != nil {
+		logger.Error("Error communicating with upstream service", "error", err)
 
-		if resp.StatusCode != http.StatusOK {
-			logger.Error("Expected status 200 from service got", "status", resp.StatusCode)
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		defer resp.Body.Close()
-
-		data, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			logger.Error("Error reading response body", "error", err)
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		logger.Info("Received response from upstream", "response", string(data))
+		return nil, err
 	}
 
-	if *upstreamCall {
-		// pad the response with two spaces
-		respLines := []string{}
-		for _, s := range strings.Split(string(data), "\n") {
-			respLines = append(respLines, fmt.Sprintf("  %s", s))
-		}
+	if resp.StatusCode != http.StatusOK {
+		logger.Error("Expected status 200 from service got", "status", resp.StatusCode)
 
-		resp := strings.Join(respLines, "\n")
-
-		fmt.Fprintf(rw, "%s\n###Upstream Data: %s###\n%s", *message, *upstreamURI, resp)
-		return
+		return nil, err
 	}
 
-	rw.Write([]byte(*message))
+	defer resp.Body.Close()
 
+	data, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error("Error reading response body", "error", err)
+
+		return nil, err
+	}
+
+	logger.Info("Received response from upstream", "response", string(data))
+
+	return data, nil
 }
 
 func healthHandler(rw http.ResponseWriter, r *http.Request) {
