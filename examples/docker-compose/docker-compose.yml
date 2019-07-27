@@ -1,0 +1,50 @@
+version: "3.3"
+services:
+
+  # Define web service and envoy sidecar proxy
+  web:
+    image: nicholasjackson/upstream-echo:v0.1.9
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      UPSTREAM_URIS: "api:9090"
+      MESSAGE: "Hello World"
+      NAME: "web"
+      HTTP_CLIENT_KEEP_ALIVES: "false"
+  
+  api:
+    image: nicholasjackson/upstream-echo:v0.1.9
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      UPSTREAM_URIS: "payments:9090, cache:9090"
+      UPSTREAM_WORKERS: 2
+      MESSAGE: "API response"
+      NAME: "api"
+      HTTP_CLIENT_KEEP_ALIVES: "false"
+  
+  cache:
+    image: nicholasjackson/upstream-echo:v0.1.9
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      UPSTREAM_URIS: "localhost:9991"
+      MESSAGE: "Cache response"
+      NAME: "cache"
+      HTTP_CLIENT_KEEP_ALIVES: "false"
+  
+  payments:
+    image: nicholasjackson/upstream-echo:v0.1.9
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      UPSTREAM_URIS: "currency:9090"
+      MESSAGE: "Payments response"
+      NAME: "payments"
+      HTTP_CLIENT_KEEP_ALIVES: "false"
+  
+  currency:
+    image: nicholasjackson/upstream-echo:v0.1.9
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      UPSTREAM_URIS: "localhost:9991"
+      MESSAGE: "Currency response"
+      NAME: "currency"
+      HTTP_CLIENT_KEEP_ALIVES: "false"
+  

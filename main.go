@@ -17,6 +17,7 @@ var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs 
 var upstreamWorkers = env.Int("UPSTREAM_WORKERS", false, 1, "Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation")
 
 var message = env.String("MESSAGE", false, "Hello World", "Message to be returned from service")
+var name = env.String("NAME", false, "Service", "Name of the service")
 
 var listenAddress = env.String("LISTEN_ADDR", false, ":9090", "IP address and port to bind service to")
 
@@ -90,17 +91,57 @@ func requestHandler(rw http.ResponseWriter, r *http.Request) {
 	workChan := make(chan string)
 	errChan := make(chan error)
 	respChan := make(chan done)
+	doneChan := make(chan struct{})
 
 	// start the workers
 	for n := 0; n < workers; n++ {
 		go worker(workChan, respChan, errChan)
 	}
 
-	// do work
-	uris := strings.Split(*upstreamURIs, ",")
+	uris := tidyURIs(*upstreamURIs)
+
+	// create the wait group to signal when all processes are complete
 	wg := sync.WaitGroup{}
 	wg.Add(len(uris))
 
+	// monitor the threads and send a message when done
+	monitorStatus(&wg, doneChan)
+
+	// setup response capture
+	responses := []done{}
+	captureResponses(respChan, &responses, &wg)
+
+	// process all the uris
+	doWork(workChan, uris)
+
+	// wait for all threads to complete or an error to be raised
+	select {
+	case err := <-errChan:
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	case <-doneChan:
+		logger.Info("All workers complete")
+	}
+
+	data := processResponses(responses)
+	rw.Write(data)
+}
+
+func tidyURIs(uris string) []string {
+	resp := []string{}
+	rawResp := strings.Split(*upstreamURIs, ",")
+
+	for _, r := range rawResp {
+		r = strings.Trim(r, " ")
+		if r != "" {
+			resp = append(resp, r)
+		}
+	}
+
+	return resp
+}
+
+func doWork(workChan chan string, uris []string) {
 	go func(workChan chan string) {
 		for _, uri := range uris {
 			uri = strings.Trim(uri, " ")
@@ -112,33 +153,28 @@ func requestHandler(rw http.ResponseWriter, r *http.Request) {
 			workChan <- uri
 		}
 	}(workChan)
+}
 
-	// capture responses
-	responses := []done{}
-	go func(responses *[]done, wg *sync.WaitGroup) {
+func captureResponses(respChan chan done, responses *[]done, wg *sync.WaitGroup) {
+	go func(respChan chan done, responses *[]done, wg *sync.WaitGroup) {
 		for r := range respChan {
+			logger.Info("Done")
 			*responses = append(*responses, r)
 			wg.Done()
 		}
-	}(&responses, &wg)
+	}(respChan, responses, wg)
+}
 
-	// send a message when all threads are complete
-	doneChan := make(chan struct{})
+func monitorStatus(wg *sync.WaitGroup, doneChan chan struct{}) {
 	go func(wg *sync.WaitGroup) {
 		wg.Wait()
 		doneChan <- struct{}{}
-	}(&wg)
+	}(wg)
+}
 
-	// wait for all threads to complete or an error to be raised
-	select {
-	case err := <-errChan:
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
-	case <-doneChan:
-		logger.Info("All workers complete")
-	}
-
+func processResponses(responses []done) []byte {
 	respLines := []string{}
+	respLines = append(respLines, fmt.Sprintf("# Reponse from: %s #", *name))
 	respLines = append(respLines, *message)
 
 	// append the output from the upstreams
@@ -151,7 +187,7 @@ func requestHandler(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	rw.Write([]byte(strings.Join(respLines, "\n")))
+	return []byte(strings.Join(respLines, "\n"))
 }
 
 func worker(workChan chan string, respChan chan done, errChan chan error) {
