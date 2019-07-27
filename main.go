@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -30,16 +32,37 @@ var timing90Percentile = env.Duration("TIMING_90_PERCENTILE", false, time.Durati
 var timing99Percentile = env.Duration("TIMING_99_PERCENTILE", false, time.Duration(1*time.Millisecond), "99 percentile duration for a request")
 var timingVariance = env.Float64("TIMING_VARIANCE", false, 0, "Decimal percentage variance for each request, every request will vary by a random amount to a maximum of a percentage of the total request time")
 
+// performance testing flags
+// these flags allow the user to inject faults into the service for testing purposes
+var errorRate = env.Float64("ERROR_RATE", false, 0.0, "Percentage of request where handler will report an error")
+var errorType = env.String("ERROR_TYPE", false, "http_error", "Type of error [http_error, delay]")
+var errorCode = env.Int("ERROR_CODE", false, http.StatusInternalServerError, "Error code to return on error")
+var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay [1s,100ms]")
+
 var logger hclog.Logger
 
 var defaultClient *http.Client
 var requestDuration *timing.RequestDuration
+
+var help = flag.Bool("help", false, "--help to show help")
+
+var version = "dev"
 
 func main() {
 
 	logger = hclog.Default()
 
 	env.Parse()
+	flag.Parse()
+
+	// if the help flag is passed show configuration options
+	if *help == true {
+		fmt.Println("Fake service version:", version)
+		fmt.Println("Configuration values are set using environment variables, for info please see the following list:")
+		fmt.Println("")
+		fmt.Println(env.Help())
+		os.Exit(0)
+	}
 
 	requestDuration = timing.NewRequestDuration(
 		*timing50Percentile,
