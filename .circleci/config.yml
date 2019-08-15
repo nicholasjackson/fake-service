@@ -5,23 +5,23 @@ jobs:
       - image: circleci/golang:1.12
     environment:
       GO111MODULE: "on"
-    working_directory: /go/src/github.com/nicholasjackson/upstream-echo
+    working_directory: /go/src/github.com/nicholasjackson/fake-service
     steps:
       - checkout
       - run: 
           name: build application
-          command: CGO_ENABLED=0 GOOS=linux go build -o bin/upstream-echo
+          command: CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
       - persist_to_workspace:
           root: /go/src/github.com/nicholasjackson
           paths:
-            - upstream-echo
+            - fake-service
   
   release:
     docker:
       - image: circleci/golang:1.12
     environment:
       GO111MODULE: "on"
-    working_directory: /go/src/github.com/nicholasjackson/upstream-echo
+    working_directory: /go/src/github.com/nicholasjackson/fake-service
     steps:
       - setup_remote_docker
       - attach_workspace:
@@ -31,10 +31,10 @@ jobs:
          command: docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
       - run: 
          name: docker build
-         command: docker build -t nicholasjackson/upstream-echo:${CIRCLE_TAG} .
+         command: docker build -t nicholasjackson/fake-service:${CIRCLE_TAG} .
       - run: 
           name: docker push
-          command: docker push nicholasjackson/upstream-echo:${CIRCLE_TAG}
+          command: docker push nicholasjackson/fake-service:${CIRCLE_TAG}
 
 workflows:
   version: 2
