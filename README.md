@@ -6,5 +6,5 @@ Fake service for testing upstream service communications and testing service mes
 README WIP
 
 ```
-docker pull nicholasjackson/upstream-echo:v0.1.8
+docker pull nicholasjackson/upstream-echo:v0.2.0
 ```
