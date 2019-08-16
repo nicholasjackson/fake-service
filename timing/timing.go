@@ -1,6 +1,7 @@
 package timing
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 )
@@ -16,12 +17,13 @@ type RequestDuration struct {
 	percentile50 time.Duration
 	percentile90 time.Duration
 	percentile99 time.Duration
-	variance     float64
-	randomFunc   func(max int) int
+	// random variance for the request as percentage of total
+	variance   int
+	randomFunc func(max int) int
 }
 
 // NewRequestDuration creates a new RequestDuration
-func NewRequestDuration(percentile50, percentile90, percentile99 time.Duration, variance float64) *RequestDuration {
+func NewRequestDuration(percentile50, percentile90, percentile99 time.Duration, variance int) *RequestDuration {
 	return &RequestDuration{
 		percentile50: percentile50,
 		percentile90: percentile90,
@@ -37,7 +39,7 @@ func (r *RequestDuration) Calculate() time.Duration {
 	// calculate the random variance percentage
 	var rv = 0
 	if r.variance > 0 {
-		r.randomFunc(int(r.variance * 100))
+		rv = r.randomFunc(r.variance)
 	}
 
 	// generate a random percentile
@@ -52,5 +54,7 @@ func (r *RequestDuration) Calculate() time.Duration {
 }
 
 func (r *RequestDuration) calculateDuration(rq time.Duration, vp int) time.Duration {
+	fmt.Println("variance", vp)
+	fmt.Println("duration", rq)
 	return rq + time.Duration(float64(rq.Nanoseconds())*float64(vp)/float64(100))
 }

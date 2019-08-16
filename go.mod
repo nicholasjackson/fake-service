@@ -1,12 +1,17 @@
-module github.com/nicholasjackson/upstream-echo
+module github.com/nicholasjackson/fake-service
 
 go 1.12
 
 require (
-	github.com/google/go-cmp v0.3.0 // indirect
+	cloud.google.com/go/logging v1.0.0
+	github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38
+	github.com/alecthomas/colour v0.0.0-20160524082231-60882d9e2721 // indirect
+	github.com/alecthomas/repr v0.0.0-20181024024818-d37bc2a10ba1 // indirect
 	github.com/hashicorp/go-hclog v0.9.2
+	github.com/mattn/go-isatty v0.0.9 // indirect
 	github.com/nicholasjackson/env v0.5.0
 	github.com/pkg/errors v0.8.1 // indirect
+	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/stretchr/testify v1.2.2
 	gotest.tools v2.2.0+incompatible
 )
