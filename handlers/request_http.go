@@ -10,6 +10,9 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/timing"
+	"github.com/nicholasjackson/fake-service/tracing"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 )
 
 // done is a message sent when an upstream worker has completed
@@ -29,6 +32,7 @@ type Request struct {
 	upstreamURIs  []string
 	workerCount   int
 	defaultClient client.HTTP
+	tracingClient tracing.Client
 }
 
 // NewRequest creates a new request handler
@@ -38,7 +42,9 @@ func NewRequest(
 	duration *timing.RequestDuration,
 	upstreamURIs []string,
 	workerCount int,
-	defaultClient client.HTTP) *Request {
+	defaultClient client.HTTP,
+	tracingClient tracing.Client,
+) *Request {
 
 	return &Request{
 		name:          name,
@@ -48,12 +54,21 @@ func NewRequest(
 		upstreamURIs:  upstreamURIs,
 		workerCount:   workerCount,
 		defaultClient: defaultClient,
+		tracingClient: tracingClient,
 	}
 }
 
 // Handle the request and call the upstream servers
 func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	rq.logger.Info("Handling request", "request", formatRequest(r))
+
+	var span opentracing.Span
+
+	// do tracing
+	if rq.tracingClient != nil {
+		span, _ = rq.tracingClient.StartSpanFromContext(r.Context(), "handle_request")
+		defer span.Finish()
+	}
 
 	// randomize the time the request takes
 	time.Sleep(rq.duration.Calculate())
@@ -65,7 +80,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 
 	// start the workers
 	for n := 0; n < rq.workerCount; n++ {
-		go rq.worker(workChan, respChan, errChan)
+		go rq.worker(workChan, respChan, errChan, span)
 	}
 
 	// create the wait group to signal when all processes are complete
@@ -121,16 +136,24 @@ func (rq *Request) monitorStatus(wg *sync.WaitGroup, doneChan chan struct{}) {
 	}(wg)
 }
 
-func (rq *Request) worker(workChan chan string, respChan chan done, errChan chan error) {
+func (rq *Request) worker(workChan chan string, respChan chan done, errChan chan error, span opentracing.Span) {
 	for {
 		uri := <-workChan
 
+		var cs opentracing.Span
+		if span != nil {
+			cs = rq.tracingClient.StartSpan("call_upstream", opentracing.ChildOf(span.Context()))
+			cs.LogFields(log.String("uri", uri))
+		}
+
 		resp, err := rq.defaultClient.Do(uri)
 		if err != nil {
+			cs.Finish()
 			errChan <- err
 			continue
 		}
 
+		cs.Finish()
 		respChan <- done{uri, resp}
 	}
 }

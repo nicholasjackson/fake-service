@@ -1,8 +1,10 @@
-build_linux:
-	CGO_ENABLED=0 GOOS=linux go build -o bin/upstream-echo
+version=v0.3.2
 
-build_docker:
-	docker build -t nicholasjackson/upstream-echo:latest .
+build_linux:
+	CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
+
+build_docker: build_linux
+	docker build -t nicholasjackson/fake-service:${version} .
 
 run_downstream:
 	NAME=web HTTP_CLIENT_KEEP_ALIVES=false UPSTREAM_WORKERS=2 UPSTREAM_URIS="http://localhost:9091,http://localhost:9092" go run main.go

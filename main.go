@@ -13,6 +13,7 @@ import (
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/handlers"
 	"github.com/nicholasjackson/fake-service/timing"
+	"github.com/nicholasjackson/fake-service/tracing"
 )
 
 var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs of the upstream services to call")
@@ -38,6 +39,9 @@ var errorRate = env.Float64("ERROR_RATE", false, 0.0, "Percentage of request whe
 var errorType = env.String("ERROR_TYPE", false, "http_error", "Type of error [http_error, delay]")
 var errorCode = env.Int("ERROR_CODE", false, http.StatusInternalServerError, "Error code to return on error")
 var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay [1s,100ms]")
+
+// metrics
+var zipkinEndpoint = env.String("ZIPKIN_METRICS", false, "", "Location of Zipkin tracing collector")
 
 var logger hclog.Logger
 
@@ -70,6 +74,13 @@ func main() {
 
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives)
+
+	// do we need to setup tracing
+	var tracingClient tracing.Client
+	if *zipkinEndpoint != "" {
+		tracingClient = tracing.NewOpenTracingClient(*zipkinEndpoint, *name, *listenAddress)
+	}
+
 	rq := handlers.NewRequest(
 		*name,
 		*message,
@@ -77,7 +88,9 @@ func main() {
 		rd,
 		tidyURIs(*upstreamURIs),
 		*upstreamWorkers,
-		defaultClient)
+		defaultClient,
+		tracingClient,
+	)
 
 	hq := handlers.NewHealth(logger)
 
@@ -92,6 +105,7 @@ func main() {
 		"upstreamWorkers", *upstreamWorkers,
 		"listenAddress", *listenAddress,
 		"http_client_keep_alives", *upstreamClientKeepAlives,
+		"zipkin_endpoint", *zipkinEndpoint,
 	)
 
 	logger.Error(
