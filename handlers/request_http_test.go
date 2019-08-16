@@ -47,18 +47,16 @@ func TestRequestCompletesWithNoUpstreams(t *testing.T) {
 }
 
 func TestReturnsErrorWithUpstreamError(t *testing.T) {
-	uri := "http://test.com"
-
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
-	h, c := setupRequest(t, []string{uri})
+	h, c := setupRequest(t, []string{"http://something.com"})
 
 	// setup the error
-	c.On("Do", uri).Return(nil, fmt.Errorf("Boom"))
+	c.On("Do", mock.Anything).Return(nil, fmt.Errorf("Boom"))
 
 	h.Handle(rr, r)
 
-	c.AssertCalled(t, "Do", uri)
+	c.AssertCalled(t, "Do", mock.Anything)
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.Equal(t, "Boom\n", rr.Body.String())
 }
