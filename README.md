@@ -6,6 +6,7 @@ Fake Service for testing upstream service communications and testing service mes
 ## Configuration
 Configuration values are set using environment variables, for info please see the following list:
 
+```
 Environment variables:
   UPSTREAM_URIS  default: no default
        Comma separated URIs of the upstream services to call
@@ -37,6 +38,7 @@ Environment variables:
        Error delay [1s,100ms]
   TRACING_ZIPKIN  default: no default
        Location of Zipkin tracing collector
+```
 
 ## Docker Container
 ```
