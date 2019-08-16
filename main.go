@@ -10,6 +10,8 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/env"
+	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/handlers"
 	"github.com/nicholasjackson/fake-service/timing"
 )
 
@@ -39,8 +41,6 @@ var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay 
 
 var logger hclog.Logger
 
-var requestDuration *timing.RequestDuration
-
 var help = flag.Bool("help", false, "--help to show help")
 
 var version = "dev"
@@ -61,7 +61,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	requestDuration = timing.NewRequestDuration(
+	rd := timing.NewRequestDuration(
 		*timing50Percentile,
 		*timing90Percentile,
 		*timing99Percentile,
@@ -69,13 +69,24 @@ func main() {
 	)
 
 	// create the httpClient
-	//defaultClient := client.NewHTTP(*upstreamClientKeepAlives)
+	defaultClient := client.NewHTTP(*upstreamClientKeepAlives)
+	rq := handlers.NewRequest(
+		*name,
+		*message,
+		logger,
+		rd,
+		tidyURIs(*upstreamURIs),
+		*upstreamWorkers,
+		defaultClient)
 
-	//http.HandleFunc("/", requestHandler)
-	//http.HandleFunc("/health", healthHandler)
+	hq := handlers.NewHealth(logger)
+
+	http.HandleFunc("/", rq.Handle)
+	http.HandleFunc("/health", hq.Handle)
 
 	logger.Info(
 		"Starting service",
+		"name", *name,
 		"message", *message,
 		"upstreamURIs", *upstreamURIs,
 		"upstreamWorkers", *upstreamWorkers,
@@ -83,7 +94,9 @@ func main() {
 		"http_client_keep_alives", *upstreamClientKeepAlives,
 	)
 
-	logger.Error("Error starting service", "error", http.ListenAndServe(*listenAddress, nil))
+	logger.Error(
+		"Error starting service", "error",
+		http.ListenAndServe(*listenAddress, nil))
 }
 
 // tidyURIs splits the upstream URIs passed by environment variable and reuturns

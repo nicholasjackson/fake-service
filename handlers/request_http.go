@@ -31,6 +31,24 @@ type Request struct {
 	defaultClient client.HTTP
 }
 
+// NewRequest creates a new request handler
+func NewRequest(
+	name, message string,
+	logger hclog.Logger,
+	duration *timing.RequestDuration,
+	upstreamURIs []string,
+	workerCount int,
+	defaultClient client.HTTP) *Request {
+	return &Request{
+		name:          name,
+		message:       message,
+		duration:      duration,
+		upstreamURIs:  upstreamURIs,
+		workerCount:   workerCount,
+		defaultClient: defaultClient,
+	}
+}
+
 // Handle the request and call the upstream servers
 func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	rq.logger.Info("Handling request", "request", formatRequest(r))
