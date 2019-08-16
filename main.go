@@ -220,6 +220,7 @@ func worker(workChan chan string, respChan chan done, errChan chan error) {
 		resp, err := callUpstream(uri)
 		if err != nil {
 			errChan <- err
+			continue
 		}
 
 		respChan <- done{uri, resp}
