@@ -22,7 +22,7 @@ var upstreamWorkers = env.Int("UPSTREAM_WORKERS", false, 1, "Number of parallel 
 var message = env.String("MESSAGE", false, "Hello World", "Message to be returned from service")
 var name = env.String("NAME", false, "Service", "Name of the service")
 
-var listenAddress = env.String("LISTEN_ADDR", false, ":9090", "IP address and port to bind service to")
+var listenAddress = env.String("LISTEN_ADDR", false, "0.0.0.0:9090", "IP address and port to bind service to")
 
 // Upstream client configuration
 var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, true, "Enable HTTP connection keep alives for upstream calls")
@@ -41,7 +41,7 @@ var errorCode = env.Int("ERROR_CODE", false, http.StatusInternalServerError, "Er
 var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay [1s,100ms]")
 
 // metrics
-var zipkinEndpoint = env.String("ZIPKIN_METRICS", false, "", "Location of Zipkin tracing collector")
+var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
 
 var logger hclog.Logger
 

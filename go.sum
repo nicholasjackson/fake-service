@@ -73,6 +73,8 @@ github.com/opentracing/opentracing-go v1.1.0 h1:pWlfV3Bxv7k65HYwkikxat0+s3pV4bsq
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/openzipkin-contrib/zipkin-go-opentracing v0.4.0 h1:a7XjcO4CuWqOo+Q73xNP3zynrGqSV79efvnyOR1VX2w=
 github.com/openzipkin-contrib/zipkin-go-opentracing v0.4.0/go.mod h1:43Mk30vFXoLxnMUPjhFkw7+XiLl4tZb6eBqvEErE6hQ=
+github.com/openzipkin-contrib/zipkin-go-opentracing v0.4.1 h1:ixgZ9n2yUq6AnUia9LjPW8anC+ENFNlvObpgi1nLtOY=
+github.com/openzipkin-contrib/zipkin-go-opentracing v0.4.1/go.mod h1:43Mk30vFXoLxnMUPjhFkw7+XiLl4tZb6eBqvEErE6hQ=
 github.com/openzipkin/zipkin-go v0.2.0 h1:33/f6xXB6YlOQ9tgTsXVOkdLCJsHTcZJnMy4DnSd6FU=
 github.com/openzipkin/zipkin-go v0.2.0/go.mod h1:NaW6tEwdmWMaCDZzg8sh+IBNOxHMPnhQw8ySjnjRyN4=
 github.com/pierrec/lz4 v1.0.2-0.20190131084431-473cd7ce01a1/go.mod h1:3/3N9NVKO0jef7pBehbT1qWhCMrIgbYNnFAZCqQ5LRc=

@@ -11,7 +11,7 @@ require (
 	github.com/mattn/go-isatty v0.0.9 // indirect
 	github.com/nicholasjackson/env v0.5.0
 	github.com/opentracing/opentracing-go v1.1.0
-	github.com/openzipkin-contrib/zipkin-go-opentracing v0.4.0
+	github.com/openzipkin-contrib/zipkin-go-opentracing v0.4.1
 	github.com/openzipkin/zipkin-go v0.2.0
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/sergi/go-diff v1.0.0 // indirect

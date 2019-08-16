@@ -8,7 +8,9 @@ import (
 	"github.com/opentracing/opentracing-go"
 	zipkinot "github.com/openzipkin-contrib/zipkin-go-opentracing"
 	"github.com/openzipkin/zipkin-go"
+
 	zipkinhttp "github.com/openzipkin/zipkin-go/reporter/http"
+	//logreporter "github.com/openzipkin/zipkin-go/reporter/log"
 )
 
 // Client implements a tracing client
@@ -24,6 +26,8 @@ type OpenTracingClient struct {
 // NewOpenTracingClient creates a new open tracing client
 func NewOpenTracingClient(uri, name, serviceURI string) Client {
 	reporter := zipkinhttp.NewReporter(fmt.Sprintf("%s/api/v2/spans", uri))
+
+	//reporter := logreporter.NewReporter(log.New(os.Stderr, "", log.LstdFlags))
 
 	// create our local service endpoint
 	endpoint, err := zipkin.NewEndpoint(name, serviceURI)

@@ -11,8 +11,8 @@ import (
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/tracing"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 )
 
 // done is a message sent when an upstream worker has completed
@@ -62,16 +62,35 @@ func NewRequest(
 func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	rq.logger.Info("Handling request", "request", formatRequest(r))
 
-	var span opentracing.Span
-
-	// do tracing
-	if rq.tracingClient != nil {
-		span, _ = rq.tracingClient.StartSpanFromContext(r.Context(), "handle_request")
-		defer span.Finish()
+	var serverSpan opentracing.Span
+	wireContext, err := opentracing.GlobalTracer().Extract(
+		opentracing.HTTPHeaders,
+		opentracing.HTTPHeadersCarrier(r.Header),
+	)
+	if err != nil {
+		// Optionally record something about err here
+		rq.logger.Error("Error obtaining context", "error", err)
 	}
 
+	// Create the span referring to the RPC client if available.
+	// If wireContext == nil, a root span will be created.
+	serverSpan = opentracing.StartSpan(
+		"handle_request",
+		ext.RPCServerOption(wireContext))
+
+	defer serverSpan.Finish()
+
 	// randomize the time the request takes
-	time.Sleep(rq.duration.Calculate())
+	d := rq.duration.Calculate()
+	sp := serverSpan.Tracer().StartSpan(
+		"service_delay",
+		opentracing.ChildOf(serverSpan.Context()),
+	)
+
+	// wait for a predetermined time
+	time.Sleep(d)
+
+	sp.Finish()
 
 	workChan := make(chan string)
 	errChan := make(chan error)
@@ -80,7 +99,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 
 	// start the workers
 	for n := 0; n < rq.workerCount; n++ {
-		go rq.worker(workChan, respChan, errChan, span)
+		go rq.worker(serverSpan.Context(), workChan, respChan, errChan)
 	}
 
 	// create the wait group to signal when all processes are complete
@@ -136,24 +155,36 @@ func (rq *Request) monitorStatus(wg *sync.WaitGroup, doneChan chan struct{}) {
 	}(wg)
 }
 
-func (rq *Request) worker(workChan chan string, respChan chan done, errChan chan error, span opentracing.Span) {
+func (rq *Request) worker(ctx opentracing.SpanContext, workChan chan string, respChan chan done, errChan chan error) {
 	for {
 		uri := <-workChan
 
-		var cs opentracing.Span
-		if span != nil {
-			cs = rq.tracingClient.StartSpan("call_upstream", opentracing.ChildOf(span.Context()))
-			cs.LogFields(log.String("uri", uri))
-		}
+		httpReq, _ := http.NewRequest("GET", uri, nil)
 
-		resp, err := rq.defaultClient.Do(uri)
+		clientSpan := opentracing.StartSpan(
+			"call_upstream",
+			opentracing.ChildOf(ctx),
+		)
+
+		ext.SpanKindRPCClient.Set(clientSpan)
+		ext.HTTPUrl.Set(clientSpan, uri)
+		ext.HTTPMethod.Set(clientSpan, "GET")
+
+		// Transmit the span's TraceContext as HTTP headers on our
+		// outbound request.
+		opentracing.GlobalTracer().Inject(
+			clientSpan.Context(),
+			opentracing.HTTPHeaders,
+			opentracing.HTTPHeadersCarrier(httpReq.Header))
+
+		resp, err := rq.defaultClient.Do(httpReq)
 		if err != nil {
-			cs.Finish()
 			errChan <- err
+			clientSpan.Finish()
 			continue
 		}
 
-		cs.Finish()
+		clientSpan.Finish()
 		respChan <- done{uri, resp}
 	}
 }

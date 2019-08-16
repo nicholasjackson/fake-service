@@ -8,7 +8,7 @@ import (
 
 // HTTP defines an interface for upstream HTTP client requests
 type HTTP interface {
-	Do(string) ([]byte, error)
+	Do(r *http.Request) ([]byte, error)
 }
 
 // HTTPImpl is the concrete implementation of the HTTP interface
@@ -30,11 +30,11 @@ func NewHTTP(upstreamClientKeepAlives bool) HTTP {
 }
 
 // Do makes the upstream request and returns a response
-func (h *HTTPImpl) Do(uri string) ([]byte, error) {
+func (h *HTTPImpl) Do(r *http.Request) ([]byte, error) {
 	var data []byte
 
 	// call the upstream service
-	resp, err := h.defaultClient.Get(uri)
+	resp, err := h.defaultClient.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("Error communicating with upstream service: %s", err)
 	}

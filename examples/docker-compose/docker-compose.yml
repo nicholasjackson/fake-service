@@ -9,12 +9,12 @@ services:
       MESSAGE: "Hello World"
       NAME: "web"
       HTTP_CLIENT_KEEP_ALIVES: "false"
-      ZIPKIN_METRICS: "http://jaeger:9411"
+      TRACING_ZIPKIN: "http://jaeger:9411"
     ports:
       - "9090:9090"
   
   api:
-    image: nicholasjackson/fake-service:v0.3.1
+    image: nicholasjackson/fake-service:v0.3.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://payments:9090, http://cache:9090"
@@ -22,31 +22,35 @@ services:
       MESSAGE: "API response"
       NAME: "api"
       HTTP_CLIENT_KEEP_ALIVES: "false"
+      TRACING_ZIPKIN: "http://jaeger:9411"
   
   cache:
-    image: nicholasjackson/fake-service:v0.3.1
+    image: nicholasjackson/fake-service:v0.3.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
       NAME: "cache"
       HTTP_CLIENT_KEEP_ALIVES: "false"
+      TRACING_ZIPKIN: "http://jaeger:9411"
   
   payments:
-    image: nicholasjackson/fake-service:v0.3.1
+    image: nicholasjackson/fake-service:v0.3.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://currency:9090"
       MESSAGE: "Payments response"
       NAME: "payments"
       HTTP_CLIENT_KEEP_ALIVES: "false"
+      TRACING_ZIPKIN: "http://jaeger:9411"
   
   currency:
-    image: nicholasjackson/fake-service:v0.3.1
+    image: nicholasjackson/fake-service:v0.3.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
       NAME: "currency"
       HTTP_CLIENT_KEEP_ALIVES: "false"
+      TRACING_ZIPKIN: "http://jaeger:9411"
 
   jaeger:
     image: jaegertracing/all-in-one:1.13
