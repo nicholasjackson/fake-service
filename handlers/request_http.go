@@ -39,9 +39,11 @@ func NewRequest(
 	upstreamURIs []string,
 	workerCount int,
 	defaultClient client.HTTP) *Request {
+
 	return &Request{
 		name:          name,
 		message:       message,
+		logger:        logger,
 		duration:      duration,
 		upstreamURIs:  upstreamURIs,
 		workerCount:   workerCount,

@@ -1,9 +1,8 @@
 version: "3.3"
 services:
 
-  # Define web service and envoy sidecar proxy
   web:
-    image: nicholasjackson/upstream-echo:v0.1.9
+    image: nicholasjackson/fake-service:v0.3.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://api:9090"
@@ -14,7 +13,7 @@ services:
       - "9090:9090"
   
   api:
-    image: nicholasjackson/upstream-echo:v0.1.9
+    image: nicholasjackson/fake-service:v0.3.0
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://payments:9090, http://cache:9090"
@@ -24,7 +23,7 @@ services:
       HTTP_CLIENT_KEEP_ALIVES: "false"
   
   cache:
-    image: nicholasjackson/upstream-echo:v0.1.9
+    image: nicholasjackson/fake-service:v0.3.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
@@ -32,7 +31,7 @@ services:
       HTTP_CLIENT_KEEP_ALIVES: "false"
   
   payments:
-    image: nicholasjackson/upstream-echo:v0.1.9
+    image: nicholasjackson/fake-service:v0.3.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://currency:9090"
@@ -41,7 +40,7 @@ services:
       HTTP_CLIENT_KEEP_ALIVES: "false"
   
   currency:
-    image: nicholasjackson/upstream-echo:v0.1.9
+    image: nicholasjackson/fake-service:v0.3.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
