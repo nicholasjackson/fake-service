@@ -12,6 +12,7 @@ require (
 	github.com/nicholasjackson/env v0.5.0
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/sergi/go-diff v1.0.0 // indirect
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/objx v0.2.0 // indirect
+	github.com/stretchr/testify v1.3.0
 	gotest.tools v2.2.0+incompatible
 )

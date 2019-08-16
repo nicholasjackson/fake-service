@@ -28,7 +28,7 @@ var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, true, 
 var timing50Percentile = env.Duration("TIMING_50_PERCENTILE", false, time.Duration(1*time.Millisecond), "Median duration for a request")
 var timing90Percentile = env.Duration("TIMING_90_PERCENTILE", false, time.Duration(1*time.Millisecond), "90 percentile duration for a request")
 var timing99Percentile = env.Duration("TIMING_99_PERCENTILE", false, time.Duration(1*time.Millisecond), "99 percentile duration for a request")
-var timingVariance = env.Float64("TIMING_VARIANCE", false, 0, "Decimal percentage variance for each request, every request will vary by a random amount to a maximum of a percentage of the total request time")
+var timingVariance = env.Int("TIMING_VARIANCE", false, 0, "Percentage variance for each request, every request will vary by a random amount to a maximum of a percentage of the total request time")
 
 // performance testing flags
 // these flags allow the user to inject faults into the service for testing purposes

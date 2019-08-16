@@ -1,7 +1,6 @@
 package timing
 
 import (
-	"fmt"
 	"math/rand"
 	"time"
 )
@@ -54,7 +53,5 @@ func (r *RequestDuration) Calculate() time.Duration {
 }
 
 func (r *RequestDuration) calculateDuration(rq time.Duration, vp int) time.Duration {
-	fmt.Println("variance", vp)
-	fmt.Println("duration", rq)
 	return rq + time.Duration(float64(rq.Nanoseconds())*float64(vp)/float64(100))
 }

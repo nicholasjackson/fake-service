@@ -1,0 +1,64 @@
+package handlers
+
+import (
+	"bytes"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/hashicorp/go-hclog"
+	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/timing"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+func setupRequest(t *testing.T, uris []string) (*Request, *client.MockHTTP) {
+	c := &client.MockHTTP{}
+	d := timing.NewRequestDuration(
+		1*time.Nanosecond,
+		1*time.Nanosecond,
+		1*time.Nanosecond,
+		0)
+
+	return &Request{
+		name:          "test",
+		message:       "test message",
+		logger:        hclog.Default(),
+		duration:      d,
+		upstreamURIs:  uris,
+		workerCount:   1,
+		defaultClient: c,
+	}, c
+}
+
+func TestRequestCompletesWithNoUpstreams(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
+	rr := httptest.NewRecorder()
+	h, c := setupRequest(t, nil)
+
+	h.Handle(rr, r)
+
+	c.AssertNotCalled(t, "Do", mock.Anything)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "# Reponse from: test #\ntest message", rr.Body.String())
+}
+
+func TestReturnsErrorWithUpstreamError(t *testing.T) {
+	uri := "http://test.com"
+
+	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
+	rr := httptest.NewRecorder()
+	h, c := setupRequest(t, []string{uri})
+
+	// setup the error
+	c.On("Do", uri).Return(nil, fmt.Errorf("Boom"))
+
+	h.Handle(rr, r)
+
+	c.AssertCalled(t, "Do", uri)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Equal(t, "Boom\n", rr.Body.String())
+}

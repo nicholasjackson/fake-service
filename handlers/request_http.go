@@ -20,6 +20,10 @@ type done struct {
 
 // Request handles inbound requests and makes any necessary upstream calls
 type Request struct {
+	// name of the service
+	name string
+	// message to return to caller
+	message       string
 	logger        hclog.Logger
 	duration      *timing.RequestDuration
 	upstreamURIs  []string
@@ -34,15 +38,14 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	// randomize the time the request takes
 	time.Sleep(rq.duration.Calculate())
 
-	workers := rq.workerCount
 	workChan := make(chan string)
 	errChan := make(chan error)
 	respChan := make(chan done)
 	doneChan := make(chan struct{})
 
 	// start the workers
-	for n := 0; n < workers; n++ {
-		go worker(workChan, respChan, errChan)
+	for n := 0; n < rq.workerCount; n++ {
+		go rq.worker(workChan, respChan, errChan)
 	}
 
 	// create the wait group to signal when all processes are complete
@@ -68,7 +71,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		rq.logger.Info("All workers complete")
 	}
 
-	data := processResponses(responses)
+	data := rq.processResponses(responses)
 	rw.Write(data)
 }
 
@@ -112,10 +115,10 @@ func (rq *Request) worker(workChan chan string, respChan chan done, errChan chan
 	}
 }
 
-func processResponses(responses []done) []byte {
+func (rq Request) processResponses(responses []done) []byte {
 	respLines := []string{}
-	respLines = append(respLines, fmt.Sprintf("# Reponse from: %s #", *name))
-	respLines = append(respLines, *message)
+	respLines = append(respLines, fmt.Sprintf("# Reponse from: %s #", rq.name))
+	respLines = append(respLines, rq.message)
 
 	// append the output from the upstreams
 	for _, r := range responses {
