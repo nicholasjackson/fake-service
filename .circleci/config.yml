@@ -9,6 +9,9 @@ jobs:
     steps:
       - checkout
       - run: 
+          name: test application
+          command: go test -v ./... 
+      - run: 
           name: build application
           command: CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
       - persist_to_workspace:
