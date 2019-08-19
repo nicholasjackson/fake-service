@@ -1,4 +1,4 @@
-version=v0.3.2
+version=v0.3.3
 
 build_linux:
 	CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service

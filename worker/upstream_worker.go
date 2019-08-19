@@ -7,12 +7,12 @@ import (
 )
 
 // WorkFunc defines a function which is called when work is to be done
-type WorkFunc func(uri string) error
+type WorkFunc func(uri string) (string, error)
 
-// done is a message sent when an upstream worker has completed
-type done struct {
-	uri  string
-	data []byte
+// Done is a message sent when an upstream worker has completed
+type Done struct {
+	URI     string
+	Message string
 }
 
 // UpstreamWorker manages parallel upstream requests
@@ -20,11 +20,11 @@ type UpstreamWorker struct {
 	workerCount int
 	workChan    chan string
 	errChan     chan error
-	respChan    chan done
 	doneChan    chan struct{}
 	workFunc    WorkFunc
 	waitGroup   *sync.WaitGroup
 	logger      hclog.Logger
+	responses   []Done
 }
 
 // New UpstreamWorker
@@ -33,11 +33,11 @@ func New(workerCount int, logger hclog.Logger, f WorkFunc) *UpstreamWorker {
 		workerCount: workerCount,
 		workChan:    make(chan string),
 		errChan:     make(chan error),
-		respChan:    make(chan done),
 		doneChan:    make(chan struct{}),
 		workFunc:    f,
 		waitGroup:   &sync.WaitGroup{},
 		logger:      logger,
+		responses:   []Done{},
 	}
 }
 
@@ -55,9 +55,6 @@ func (u *UpstreamWorker) Do(uris []string) error {
 	// monitor the threads and send a message when done
 	u.monitorStatus()
 
-	// setup response capture
-	u.captureResponses()
-
 	// start the work
 	go func() {
 		for _, uri := range uris {
@@ -73,12 +70,9 @@ func (u *UpstreamWorker) Do(uris []string) error {
 	}
 }
 
-func (u *UpstreamWorker) captureResponses() {
-	go func() {
-		for range u.respChan {
-			u.waitGroup.Done()
-		}
-	}()
+// Responses returns the responses from the upstream calls
+func (u *UpstreamWorker) Responses() []Done {
+	return u.responses
 }
 
 //
@@ -94,14 +88,16 @@ func (u *UpstreamWorker) worker() {
 		uri := <-u.workChan
 		u.logger.Debug("Starting Work", "uri", uri)
 
-		err := u.workFunc(uri)
+		resp, err := u.workFunc(uri)
 
 		if err != nil {
 			u.errChan <- err
 			continue
 		}
 
+		u.responses = append(u.responses, Done{uri, resp})
+		u.waitGroup.Done()
+
 		u.logger.Debug("Finished Work", "uri", uri)
-		u.respChan <- done{uri, nil}
 	}
 }

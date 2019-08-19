@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/tracing"
+	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 )
@@ -92,113 +92,63 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 
 	sp.Finish()
 
-	workChan := make(chan string)
-	errChan := make(chan error)
-	respChan := make(chan done)
-	doneChan := make(chan struct{})
+	data := []byte(fmt.Sprintf("# Reponse from: %s #\n%s\n", rq.name, rq.message))
+	// if we need to create upstream requests create a worker pool
+	if len(rq.upstreamURIs) > 0 {
+		wp := worker.New(rq.workerCount, rq.logger, func(uri string) (string, error) {
+			return rq.workerHTTP(serverSpan.Context(), uri)
+		})
 
-	// start the workers
-	for n := 0; n < rq.workerCount; n++ {
-		go rq.worker(serverSpan.Context(), workChan, respChan, errChan)
+		err := wp.Do(rq.upstreamURIs)
+
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		data = append(data, rq.processResponses(wp.Responses())...)
 	}
 
-	// create the wait group to signal when all processes are complete
-	wg := sync.WaitGroup{}
-	wg.Add(len(rq.upstreamURIs))
-
-	// monitor the threads and send a message when done
-	rq.monitorStatus(&wg, doneChan)
-
-	// setup response capture
-	responses := []done{}
-	rq.captureResponses(respChan, &responses, &wg)
-
-	// call the upstreams
-	rq.doWork(workChan, rq.upstreamURIs)
-
-	// wait for all threads to complete or an error to be raised
-	select {
-	case err := <-errChan:
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
-	case <-doneChan:
-		rq.logger.Info("All workers complete")
-	}
-
-	data := rq.processResponses(responses)
 	rw.Write(data)
 }
 
-func (rq *Request) doWork(workChan chan string, uris []string) {
-	go func(workChan chan string) {
-		for _, uri := range uris {
-			workChan <- uri
-		}
-	}(workChan)
-}
+func (rq *Request) workerHTTP(ctx opentracing.SpanContext, uri string) (string, error) {
+	httpReq, _ := http.NewRequest("GET", uri, nil)
 
-func (rq *Request) captureResponses(respChan chan done, responses *[]done, wg *sync.WaitGroup) {
-	go func(respChan chan done, responses *[]done, wg *sync.WaitGroup) {
-		for r := range respChan {
-			rq.logger.Info("Done")
-			*responses = append(*responses, r)
-			wg.Done()
-		}
-	}(respChan, responses, wg)
-}
+	clientSpan := opentracing.StartSpan(
+		"call_upstream",
+		opentracing.ChildOf(ctx),
+	)
 
-//
-func (rq *Request) monitorStatus(wg *sync.WaitGroup, doneChan chan struct{}) {
-	go func(wg *sync.WaitGroup) {
-		wg.Wait()
-		doneChan <- struct{}{}
-	}(wg)
-}
+	ext.SpanKindRPCClient.Set(clientSpan)
+	ext.HTTPUrl.Set(clientSpan, uri)
+	ext.HTTPMethod.Set(clientSpan, "GET")
 
-func (rq *Request) worker(ctx opentracing.SpanContext, workChan chan string, respChan chan done, errChan chan error) {
-	for {
-		uri := <-workChan
+	// Transmit the span's TraceContext as HTTP headers on our
+	// outbound request.
+	opentracing.GlobalTracer().Inject(
+		clientSpan.Context(),
+		opentracing.HTTPHeaders,
+		opentracing.HTTPHeadersCarrier(httpReq.Header))
 
-		httpReq, _ := http.NewRequest("GET", uri, nil)
+	resp, err := rq.defaultClient.Do(httpReq)
+	clientSpan.Finish()
 
-		clientSpan := opentracing.StartSpan(
-			"call_upstream",
-			opentracing.ChildOf(ctx),
-		)
-
-		ext.SpanKindRPCClient.Set(clientSpan)
-		ext.HTTPUrl.Set(clientSpan, uri)
-		ext.HTTPMethod.Set(clientSpan, "GET")
-
-		// Transmit the span's TraceContext as HTTP headers on our
-		// outbound request.
-		opentracing.GlobalTracer().Inject(
-			clientSpan.Context(),
-			opentracing.HTTPHeaders,
-			opentracing.HTTPHeadersCarrier(httpReq.Header))
-
-		resp, err := rq.defaultClient.Do(httpReq)
-		if err != nil {
-			errChan <- err
-			clientSpan.Finish()
-			continue
-		}
-
-		clientSpan.Finish()
-		respChan <- done{uri, resp}
+	if err != nil {
+		return "", err
 	}
+
+	return string(resp), nil
 }
 
-func (rq Request) processResponses(responses []done) []byte {
+func (rq Request) processResponses(responses []worker.Done) []byte {
 	respLines := []string{}
-	respLines = append(respLines, fmt.Sprintf("# Reponse from: %s #", rq.name))
-	respLines = append(respLines, rq.message)
 
 	// append the output from the upstreams
 	for _, r := range responses {
-		respLines = append(respLines, fmt.Sprintf("## Called upstream uri: %s", r.uri))
+		respLines = append(respLines, fmt.Sprintf("## Called upstream uri: %s", r.URI))
 		// indent the reposne from the upstream
-		lines := strings.Split(string(r.data), "\n")
+		lines := strings.Split(r.Message, "\n")
 		for _, l := range lines {
 			respLines = append(respLines, fmt.Sprintf("  %s", l))
 		}

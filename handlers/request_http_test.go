@@ -43,7 +43,25 @@ func TestRequestCompletesWithNoUpstreams(t *testing.T) {
 
 	c.AssertNotCalled(t, "Do", mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "# Reponse from: test #\ntest message", rr.Body.String())
+	assert.Equal(t, "# Reponse from: test #\ntest message\n", rr.Body.String())
+}
+
+func TestRequestCompletesWithUpstreams(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
+	rr := httptest.NewRecorder()
+	h, c := setupRequest(t, []string{"http://something.com"})
+
+	// setup the upstream response
+	c.On("Do", mock.Anything).Return([]byte("# Response from: upstream #\nOK\n"), nil)
+
+	h.Handle(rr, r)
+
+	c.AssertCalled(t, "Do", mock.Anything)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(
+		t,
+		"# Reponse from: test #\ntest message\n## Called upstream uri: http://something.com\n  # Response from: upstream #\n  OK\n  ",
+		rr.Body.String())
 }
 
 func TestReturnsErrorWithUpstreamError(t *testing.T) {
