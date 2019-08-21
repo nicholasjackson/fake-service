@@ -31,6 +31,7 @@ type Request struct {
 	upstreamURIs  []string
 	workerCount   int
 	defaultClient client.HTTP
+	grpcClients   map[string]client.GRPC
 	tracingClient tracing.Client
 }
 
@@ -42,6 +43,7 @@ func NewRequest(
 	upstreamURIs []string,
 	workerCount int,
 	defaultClient client.HTTP,
+	grpcClients map[string]client.GRPC,
 	tracingClient tracing.Client,
 ) *Request {
 
@@ -53,6 +55,7 @@ func NewRequest(
 		upstreamURIs:  upstreamURIs,
 		workerCount:   workerCount,
 		defaultClient: defaultClient,
+		grpcClients:   grpcClients,
 		tracingClient: tracingClient,
 	}
 }

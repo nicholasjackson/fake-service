@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -11,14 +13,17 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/env"
 	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/grpc/api"
 	"github.com/nicholasjackson/fake-service/handlers"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/tracing"
+	"google.golang.org/grpc"
 )
 
 var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs of the upstream services to call")
 var upstreamWorkers = env.Int("UPSTREAM_WORKERS", false, 1, "Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation")
 
+var serviceType = env.String("SERVER_TYPE", false, "http", "Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC")
 var message = env.String("MESSAGE", false, "Hello World", "Message to be returned from service")
 var name = env.String("NAME", false, "Service", "Name of the service")
 
@@ -75,27 +80,14 @@ func main() {
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives)
 
+	// build the map of gRPCClients
+	grpcClients := make(map[string]client.GRPC)
+
 	// do we need to setup tracing
 	var tracingClient tracing.Client
 	if *zipkinEndpoint != "" {
 		tracingClient = tracing.NewOpenTracingClient(*zipkinEndpoint, *name, *listenAddress)
 	}
-
-	rq := handlers.NewRequest(
-		*name,
-		*message,
-		logger,
-		rd,
-		tidyURIs(*upstreamURIs),
-		*upstreamWorkers,
-		defaultClient,
-		tracingClient,
-	)
-
-	hq := handlers.NewHealth(logger)
-
-	http.HandleFunc("/", rq.Handle)
-	http.HandleFunc("/health", hq.Handle)
 
 	logger.Info(
 		"Starting service",
@@ -105,12 +97,52 @@ func main() {
 		"upstreamWorkers", *upstreamWorkers,
 		"listenAddress", *listenAddress,
 		"http_client_keep_alives", *upstreamClientKeepAlives,
+		"service type", *serviceType,
 		"zipkin_endpoint", *zipkinEndpoint,
 	)
 
-	logger.Error(
-		"Error starting service", "error",
-		http.ListenAndServe(*listenAddress, nil))
+	if *serviceType == "http" {
+		rq := handlers.NewRequest(
+			*name,
+			*message,
+			logger,
+			rd,
+			tidyURIs(*upstreamURIs),
+			*upstreamWorkers,
+			defaultClient,
+			grpcClients,
+			tracingClient,
+		)
+
+		hq := handlers.NewHealth(logger)
+
+		http.HandleFunc("/", rq.Handle)
+		http.HandleFunc("/health", hq.Handle)
+		logger.Error(
+			"Error starting service", "error",
+			http.ListenAndServe(*listenAddress, nil))
+	}
+
+	if *serviceType == "grpc" {
+		lis, err := net.Listen("tcp", *listenAddress)
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+
+		grpcServer := grpc.NewServer()
+		fakeServer := handlers.NewFakeServer(
+			*name,
+			*message,
+			rd,
+			tidyURIs(*upstreamURIs),
+			*upstreamWorkers,
+			defaultClient,
+			logger,
+		)
+
+		api.RegisterFakeServiceServer(grpcServer, fakeServer)
+		grpcServer.Serve(lis)
+	}
 }
 
 // tidyURIs splits the upstream URIs passed by environment variable and reuturns

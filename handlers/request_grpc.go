@@ -9,7 +9,6 @@ import (
 	"github.com/nicholasjackson/fake-service/grpc/api"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/worker"
-	"google.golang.org/grpc"
 )
 
 // FakeServer implements the gRPC interface
@@ -44,10 +43,11 @@ func NewFakeServer(
 }
 
 // Handle implmements the FakeServer Handle interface method
-func (f *FakeServer) Handle(ctx context.Context, in *api.Nil, opts ...grpc.CallOption) (*api.Response, error) {
+func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, error) {
 	f.logger.Info("Handling request", "request", in.String())
 
 	data := []byte(fmt.Sprintf("# Reponse from: %s #\n%s\n", f.name, f.message))
+
 	// if we need to create upstream requests create a worker pool
 	if len(f.upstreamURIs) > 0 {
 		wp := worker.New(f.workerCount, f.logger, func(uri string) (string, error) {
