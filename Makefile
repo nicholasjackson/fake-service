@@ -1,5 +1,8 @@
 version=v0.3.3
 
+protos:
+	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
+
 build_linux:
 	CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
 

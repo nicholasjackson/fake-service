@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+service FakeService {
+  rpc Handle(Nil) returns (Response) {}
+}
+
+message Nil {}
+
+message Response {
+  string Message = 1;
+}
