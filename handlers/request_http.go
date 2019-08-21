@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -98,7 +99,10 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	// if we need to create upstream requests create a worker pool
 	if len(rq.upstreamURIs) > 0 {
 		wp := worker.New(rq.workerCount, rq.logger, func(uri string) (string, error) {
-			return workerHTTP(serverSpan.Context(), uri, rq.defaultClient)
+			if strings.HasPrefix(uri, "http://") {
+				return workerHTTP(serverSpan.Context(), uri, rq.defaultClient)
+			}
+			return workerGRPC(serverSpan.Context(), uri, rq.grpcClients)
 		})
 
 		err := wp.Do(rq.upstreamURIs)

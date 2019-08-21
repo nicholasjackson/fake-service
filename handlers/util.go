@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -38,6 +39,18 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 	}
 
 	return string(resp), nil
+}
+
+func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC) (string, error) {
+	c := grpcClients[uri]
+
+	r, err := c.Handle(context.Background(), nil)
+
+	if err != nil {
+		return "", err
+	}
+
+	return r.Message, nil
 }
 
 func processResponses(responses []worker.Done) []byte {

@@ -106,6 +106,22 @@ func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(
 		t,
-		"# Reponse from: test #\ntest message\n## Called upstream uri: http://something.com\n  # Response from: upstream #\n  OK\n  ",
+		"# Reponse from: test #\ntest message\n## Called upstream uri: grpc://something.com\n  # Response from: upstream #\n  OK\n  ",
 		rr.Body.String())
+}
+
+func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
+	rr := httptest.NewRecorder()
+	h, _, gc := setupRequest(t, []string{"grpc://something.com"})
+
+	// setup the upstream response
+	gcMock := gc["grpc://something.com"].(*client.MockGRPC)
+	gcMock.On("Handle", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("Boom"))
+
+	h.Handle(rr, r)
+
+	gcMock.AssertCalled(t, "Handle", mock.Anything, mock.Anything)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Equal(t, "Boom\n", rr.Body.String())
 }
