@@ -48,7 +48,7 @@ func NewFakeServer(
 
 // Handle implmements the FakeServer Handle interface method
 func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, error) {
-	f.logger.Info("Handling request", "request", in.String())
+	f.logger.Info("Handling request gRPC request")
 
 	data := []byte(fmt.Sprintf("# Reponse from: %s #\n%s\n", f.name, f.message))
 
@@ -65,6 +65,7 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		err := wp.Do(f.upstreamURIs)
 
 		if err != nil {
+			f.logger.Error("Error making upstream call", "error", err)
 			return nil, err
 		}
 

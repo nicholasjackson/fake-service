@@ -4,11 +4,22 @@ import (
 	"context"
 
 	"github.com/nicholasjackson/fake-service/grpc/api"
+	"google.golang.org/grpc"
 )
 
 // GRPC defines the interface for a GRPC client
 type GRPC interface {
 	Handle(context.Context, *api.Nil) (*api.Response, error)
+}
+
+// NewGRPC creates a new GRPC client
+func NewGRPC(uri string) (GRPC, error) {
+	conn, err := grpc.Dial(uri, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+
+	return &GRPCImpl{api.NewFakeServiceClient(conn)}, nil
 }
 
 // GRPCImpl is the concrete implementation of the GRPC client

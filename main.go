@@ -82,6 +82,18 @@ func main() {
 
 	// build the map of gRPCClients
 	grpcClients := make(map[string]client.GRPC)
+	for _, u := range tidyURIs(*upstreamURIs) {
+		//strip the grpc:// from the uri
+		u2 := strings.TrimPrefix(u, "grpc://")
+
+		c, err := client.NewGRPC(u2)
+		if err != nil {
+			logger.Error("Error creating GRPC client", "error", err)
+			os.Exit(1)
+		}
+
+		grpcClients[u] = c
+	}
 
 	// do we need to setup tracing
 	var tracingClient tracing.Client

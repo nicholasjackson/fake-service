@@ -2,53 +2,58 @@ version: "3.3"
 services:
 
   web:
-    image: nicholasjackson/fake-service:v0.3.2
+    image: nicholasjackson/fake-service:v0.3.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
-      UPSTREAM_URIS: "http://api:9090"
+      UPSTREAM_URIS: "grpc://api:9090"
       MESSAGE: "Hello World"
       NAME: "web"
+      SERVER_TYPE: "http"
       HTTP_CLIENT_KEEP_ALIVES: "false"
       TRACING_ZIPKIN: "http://jaeger:9411"
     ports:
       - "9090:9090"
   
   api:
-    image: nicholasjackson/fake-service:v0.3.2
+    image: nicholasjackson/fake-service:v0.3.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://payments:9090, http://cache:9090"
       UPSTREAM_WORKERS: 2
       MESSAGE: "API response"
       NAME: "api"
+      SERVER_TYPE: "grpc"
       HTTP_CLIENT_KEEP_ALIVES: "false"
       TRACING_ZIPKIN: "http://jaeger:9411"
   
   cache:
-    image: nicholasjackson/fake-service:v0.3.2
+    image: nicholasjackson/fake-service:v0.3.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
       NAME: "cache"
+      SERVER_TYPE: "http"
       HTTP_CLIENT_KEEP_ALIVES: "false"
       TRACING_ZIPKIN: "http://jaeger:9411"
   
   payments:
-    image: nicholasjackson/fake-service:v0.3.2
+    image: nicholasjackson/fake-service:v0.3.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://currency:9090"
       MESSAGE: "Payments response"
       NAME: "payments"
+      SERVER_TYPE: "http"
       HTTP_CLIENT_KEEP_ALIVES: "false"
       TRACING_ZIPKIN: "http://jaeger:9411"
   
   currency:
-    image: nicholasjackson/fake-service:v0.3.2
+    image: nicholasjackson/fake-service:v0.3.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
       NAME: "currency"
+      SERVER_TYPE: "http"
       HTTP_CLIENT_KEEP_ALIVES: "false"
       TRACING_ZIPKIN: "http://jaeger:9411"
 

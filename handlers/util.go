@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/grpc/api"
 	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -44,7 +45,7 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC) (string, error) {
 	c := grpcClients[uri]
 
-	r, err := c.Handle(context.Background(), nil)
+	r, err := c.Handle(context.Background(), &api.Nil{})
 
 	if err != nil {
 		return "", err

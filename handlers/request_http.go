@@ -100,8 +100,11 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	if len(rq.upstreamURIs) > 0 {
 		wp := worker.New(rq.workerCount, rq.logger, func(uri string) (string, error) {
 			if strings.HasPrefix(uri, "http://") {
+				rq.logger.Info("Calling upstream HTTP service", "uri", uri)
 				return workerHTTP(serverSpan.Context(), uri, rq.defaultClient)
 			}
+
+			rq.logger.Info("Calling upstream gRPC service", "uri", uri)
 			return workerGRPC(serverSpan.Context(), uri, rq.grpcClients)
 		})
 
