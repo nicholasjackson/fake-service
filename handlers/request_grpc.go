@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
@@ -19,6 +20,7 @@ type FakeServer struct {
 	upstreamURIs  []string
 	workerCount   int
 	defaultClient client.HTTP
+	grpcClients   map[string]client.GRPC
 	logger        hclog.Logger
 }
 
@@ -29,6 +31,7 @@ func NewFakeServer(
 	upstreamURIs []string,
 	workerCount int,
 	defaultClient client.HTTP,
+	grpcClients map[string]client.GRPC,
 	l hclog.Logger) *FakeServer {
 
 	return &FakeServer{
@@ -38,6 +41,7 @@ func NewFakeServer(
 		upstreamURIs:  upstreamURIs,
 		workerCount:   workerCount,
 		defaultClient: defaultClient,
+		grpcClients:   grpcClients,
 		logger:        l,
 	}
 }
@@ -51,7 +55,11 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	// if we need to create upstream requests create a worker pool
 	if len(f.upstreamURIs) > 0 {
 		wp := worker.New(f.workerCount, f.logger, func(uri string) (string, error) {
-			return workerHTTP(nil, uri, f.defaultClient)
+			if strings.HasPrefix(uri, "http://") {
+				return workerHTTP(nil, uri, f.defaultClient)
+			}
+
+			return workerGRPC(nil, uri, f.grpcClients)
 		})
 
 		err := wp.Do(f.upstreamURIs)

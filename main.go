@@ -137,6 +137,7 @@ func main() {
 			tidyURIs(*upstreamURIs),
 			*upstreamWorkers,
 			defaultClient,
+			grpcClients,
 			logger,
 		)
 
