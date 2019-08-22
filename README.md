@@ -1,5 +1,5 @@
 # Fake Service
-Fake Service for testing upstream service communications and testing service mesh and other scenarios
+Fake Service for testing upstream service communications and testing service mesh and other scenarios, can operate as a HTTP or a gRPC service.
 
 [![CircleCI](https://circleci.com/gh/nicholasjackson/fake-service.svg?style=svg)](https://circleci.com/gh/nicholasjackson/fake-service)
 
@@ -9,11 +9,13 @@ Configuration values are set using environment variables, for info please see th
 ```
 Environment variables:
   UPSTREAM_URIS  default: no default
-       Comma separated URIs of the upstream services to call
+       Comma separated URIs of the upstream services to call, http://somethig.com, or for a grpc upstream grpc://something.com
   UPSTREAM_WORKERS  default: '1'
        Number of parallel workers for calling upstreams, default is 1 which is sequential operation
   MESSAGE  default: 'Hello World'
        Message to be returned from service
+  SERVER_TYPE default: 'http'
+       Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC
   NAME  default: 'Service'
        Name of the service
   LISTEN_ADDR  default: '0.0.0.0:9090'
@@ -57,11 +59,11 @@ traces using the OpenTracing library. These can be viewed Jaeger Tracing or othe
 This example shows a multi-tier system running in docker compose consisting of 4 services which emit tracing data to Jaeger Tracing.
 
 ```
-web
-  |-- api (upstream calls to payments and cache in parallel)
-      |-- payments
-      |   |-- currency
-      |-- cache
+web - type HTTP
+  |-- api (upstream calls to payments and cache in parallel) - type gRPC
+      |-- payments - type HTTP
+      |   |-- currency - type HTTP
+      |-- cache - type HTTP
 ```
 
 To run the example:
@@ -84,18 +86,19 @@ Then curl the web endpoint:
 $ curl localhost:9090
 # Reponse from: web #
 Hello World
-## Called upstream uri: http://api:9090
+## Called upstream uri: grpc://api:9090
   # Reponse from: api #
   API response
   ## Called upstream uri: http://cache:9090
     # Reponse from: cache #
     Cache response
+
   ## Called upstream uri: http://payments:9090
     # Reponse from: payments #
     Payments response
     ## Called upstream uri: http://currency:9090
       # Reponse from: currency #
-      Currency response% 
+      Currency response
 ```
 
 Tracing data can be seen using Jaeger which is running at `http://localhost:16686`.
