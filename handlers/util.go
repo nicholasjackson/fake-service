@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"google.golang.org/grpc/metadata"
 )
 
 func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP) (string, error) {
@@ -45,7 +47,22 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC) (string, error) {
 	c := grpcClients[uri]
 
-	r, err := c.Handle(context.Background(), &api.Nil{})
+	clientSpan := opentracing.StartSpan(
+		"call_upstream",
+		opentracing.ChildOf(ctx),
+	)
+	ext.SpanKindRPCClient.Set(clientSpan)
+
+	// create the grpc metadata and inject the client span
+	md := &metadata.MD{}
+	if err := opentracing.GlobalTracer().Inject(clientSpan.Context(), opentracing.TextMap, &metadataReaderWriter{md}); err != nil {
+		return "", err
+	}
+
+	outCtx := metadata.NewOutgoingContext(context.Background(), *md)
+
+	r, err := c.Handle(outCtx, &api.Nil{})
+	clientSpan.Finish()
 
 	if err != nil {
 		return "", err
@@ -95,4 +112,27 @@ func formatRequest(r *http.Request) string {
 	}
 	// Return the request as a string
 	return strings.Join(request, "\n")
+}
+
+type metadataReaderWriter struct {
+	*metadata.MD
+}
+
+func (w metadataReaderWriter) Set(key, val string) {
+	key = strings.ToLower(key)
+	if strings.HasSuffix(key, "-bin") {
+		val = base64.StdEncoding.EncodeToString([]byte(val))
+	}
+	(*w.MD)[key] = append((*w.MD)[key], val)
+}
+
+func (w metadataReaderWriter) ForeachKey(handler func(key, val string) error) error {
+	for k, vals := range *w.MD {
+		for _, v := range vals {
+			if err := handler(k, v); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
