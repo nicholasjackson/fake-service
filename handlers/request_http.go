@@ -13,6 +13,7 @@ import (
 	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
 )
 
 // done is a message sent when an upstream worker has completed
@@ -72,7 +73,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		// Optionally record something about err here
-		rq.logger.Error("Error obtaining context", "error", err)
+		rq.logger.Error("Error obtaining context, creating new span", "error", err)
 	}
 
 	// Create the span referring to the RPC client if available.
@@ -80,6 +81,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	serverSpan = opentracing.StartSpan(
 		"handle_request",
 		ext.RPCServerOption(wireContext))
+	serverSpan.LogFields(log.String("service.type", "http"))
 
 	defer serverSpan.Finish()
 
@@ -104,7 +106,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 				return workerHTTP(serverSpan.Context(), uri, rq.defaultClient)
 			}
 
-			rq.logger.Info("Calling upstream gRPC service", "uri", uri)
+			rq.logger.Info("Calling upstream HTTP service", "uri", uri)
 			return workerGRPC(serverSpan.Context(), uri, rq.grpcClients)
 		})
 

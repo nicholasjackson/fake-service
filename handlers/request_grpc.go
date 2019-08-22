@@ -11,7 +11,9 @@ import (
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
-	ot "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
+	"google.golang.org/grpc/metadata"
 )
 
 // FakeServer implements the gRPC interface
@@ -50,14 +52,31 @@ func NewFakeServer(
 
 // Handle implmements the FakeServer Handle interface method
 func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, error) {
-	f.logger.Info("Handling request gRPC request")
+	f.logger.Info("Handling request gRPC request", "context", printContext(ctx))
 
-	// create the root span
+	// we need to convert the metadata to a httpRequest to extract the span
+	md, _ := metadata.FromIncomingContext(ctx)
+	r := grpcMetaDataToHTTPRequest(md)
+
 	var serverSpan opentracing.Span
-	if serverSpan = ot.SpanFromContext(ctx); serverSpan == nil {
-		// no span create a root
-		serverSpan = opentracing.StartSpan("handle_grpc_request")
+	wireContext, err := opentracing.GlobalTracer().Extract(
+		opentracing.HTTPHeaders,
+		opentracing.HTTPHeadersCarrier(r.Header),
+	)
+	if err != nil {
+		// Optionally record something about err here
+		f.logger.Error("Error obtaining context, creating new span", "error", err)
 	}
+
+	// Create the span referring to the RPC client if available.
+	// If wireContext == nil, a root span will be created.
+	serverSpan = opentracing.StartSpan(
+		"handle_request",
+		ext.RPCServerOption(wireContext))
+
+	serverSpan.LogFields(log.String("service.type", "grpc"))
+
+	defer serverSpan.Finish()
 
 	data := []byte(fmt.Sprintf("# Reponse from: %s #\n%s\n", f.name, f.message))
 
@@ -82,4 +101,18 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	}
 
 	return &api.Response{Message: string(data)}, nil
+}
+
+func printContext(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return "No metadata in context"
+	}
+
+	ret := ""
+	for k, v := range md {
+		ret += fmt.Sprintf("key: %s value: %s\n", k, v)
+	}
+
+	return ret
 }

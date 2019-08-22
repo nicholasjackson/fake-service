@@ -19,10 +19,10 @@ run_upstream_2:
 	NAME=upstream_2 MESSAGE="Hello from upstream 2" LISTEN_ADDR=localhost:9092 go run main.go
 
 run_downstream_grpc:
-	NAME=web HTTP_CLIENT_KEEP_ALIVES=false UPSTREAM_WORKERS=2 UPSTREAM_URIS="grpc://localhost:9091" go run main.go
+	NAME=web HTTP_CLIENT_KEEP_ALIVES=false TRACING_ZIPKIN=/dev/stderr UPSTREAM_WORKERS=2 UPSTREAM_URIS="grpc://localhost:9091" go run main.go
 
 run_upstream_grpc:
-	NAME=upstream_1 SERVER_TYPE=grpc MESSAGE="Hello from grpc upstream" LISTEN_ADDR=localhost:9091 go run main.go
+	NAME=upstream_1 SERVER_TYPE=grpc TRACING_ZIPKIN=/dev/stderr MESSAGE="Hello from grpc upstream" LISTEN_ADDR=localhost:9091 go run main.go
 
 call_downstream:
 	curl localhost:9090

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -26,6 +26,7 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 	ext.SpanKindRPCClient.Set(clientSpan)
 	ext.HTTPUrl.Set(clientSpan, uri)
 	ext.HTTPMethod.Set(clientSpan, "GET")
+	clientSpan.LogFields(log.String("upstream.type", "http"))
 
 	// Transmit the span's TraceContext as HTTP headers on our
 	// outbound request.
@@ -53,13 +54,19 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 	)
 	ext.SpanKindRPCClient.Set(clientSpan)
 
-	// create the grpc metadata and inject the client span
-	md := &metadata.MD{}
-	if err := opentracing.GlobalTracer().Inject(clientSpan.Context(), opentracing.TextMap, &metadataReaderWriter{md}); err != nil {
-		return "", err
-	}
+	// add the upstream type
+	clientSpan.LogFields(log.String("upstream.type", "grpc"))
 
-	outCtx := metadata.NewOutgoingContext(context.Background(), *md)
+	req := &http.Request{Header: http.Header{}}
+	opentracing.GlobalTracer().Inject(
+		clientSpan.Context(),
+		opentracing.HTTPHeaders,
+		opentracing.HTTPHeadersCarrier(req.Header))
+
+	// create the grpc metadata and inject the client span
+	md := httpRequestToGrpcMetadata(req)
+
+	outCtx := metadata.NewOutgoingContext(context.Background(), md)
 
 	r, err := c.Handle(outCtx, &api.Nil{})
 	clientSpan.Finish()
@@ -114,25 +121,25 @@ func formatRequest(r *http.Request) string {
 	return strings.Join(request, "\n")
 }
 
-type metadataReaderWriter struct {
-	*metadata.MD
-}
-
-func (w metadataReaderWriter) Set(key, val string) {
-	key = strings.ToLower(key)
-	if strings.HasSuffix(key, "-bin") {
-		val = base64.StdEncoding.EncodeToString([]byte(val))
-	}
-	(*w.MD)[key] = append((*w.MD)[key], val)
-}
-
-func (w metadataReaderWriter) ForeachKey(handler func(key, val string) error) error {
-	for k, vals := range *w.MD {
-		for _, v := range vals {
-			if err := handler(k, v); err != nil {
-				return err
-			}
+// the following two functions are a hack to get round that
+// opentracing zipkin can not deal with grpc metadata for
+// Inject and extract
+func grpcMetaDataToHTTPRequest(md metadata.MD) *http.Request {
+	h := http.Header{}
+	for k, v := range md {
+		for _, vv := range v {
+			h.Add(k, vv)
 		}
 	}
-	return nil
+	return &http.Request{Header: h}
+}
+
+func httpRequestToGrpcMetadata(r *http.Request) metadata.MD {
+	md := metadata.MD{}
+
+	for k, v := range r.Header {
+		md.Set(k, v...)
+	}
+
+	return md
 }
