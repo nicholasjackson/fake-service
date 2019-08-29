@@ -117,16 +117,19 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		"service_delay",
 		opentracing.ChildOf(serverSpan.Context()),
 	)
+	defer sp.Finish()
+
+	rw.Write(data)
 
 	// service time is equal to the randomised time - the current time take
 	et := time.Now().Sub(ts)
-	rd := et - d
+	rd := d - et
+
+	rq.logger.Info("Service Duration", "elapsed_time", et.String(), "calculated_duration", d.String(), "sleep_time", rd.String())
+	sp.LogFields(log.String("randomized_duration", d.String()))
+
 	if rd > 0 {
+		rq.logger.Info("Sleeping for", "duration", rd.String())
 		time.Sleep(rd)
 	}
-
-	sp.LogFields(log.String("randomized_duration", d.String()))
-	sp.Finish()
-
-	rw.Write(data)
 }

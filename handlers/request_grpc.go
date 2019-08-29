@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
@@ -54,6 +55,9 @@ func NewFakeServer(
 func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, error) {
 	f.logger.Info("Handling request gRPC request", "context", printContext(ctx))
 
+	// start timing the service this is used later for the total request time
+	ts := time.Now()
+
 	// we need to convert the metadata to a httpRequest to extract the span
 	md, _ := metadata.FromIncomingContext(ctx)
 	r := grpcMetaDataToHTTPRequest(md)
@@ -98,6 +102,26 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		}
 
 		data = append(data, processResponses(wp.Responses())...)
+	}
+
+	// randomize the time the request takes
+	d := f.duration.Calculate()
+	sp := serverSpan.Tracer().StartSpan(
+		"service_delay",
+		opentracing.ChildOf(serverSpan.Context()),
+	)
+	defer sp.Finish()
+
+	// service time is equal to the randomised time - the current time take
+	et := time.Now().Sub(ts)
+	rd := d - et
+
+	f.logger.Info("Service Duration", "elapsed_time", et.String(), "calculated_duration", d.String(), "sleep_time", rd.String())
+	sp.LogFields(log.String("randomized_duration", d.String()))
+
+	if rd > 0 {
+		f.logger.Info("Sleeping for", "duration", rd.String())
+		time.Sleep(rd)
 	}
 
 	return &api.Response{Message: string(data)}, nil

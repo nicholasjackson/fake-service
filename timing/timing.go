@@ -23,6 +23,15 @@ type RequestDuration struct {
 
 // NewRequestDuration creates a new RequestDuration
 func NewRequestDuration(percentile50, percentile90, percentile99 time.Duration, variance int) *RequestDuration {
+
+	if percentile50 > 0 && percentile90 == 0 {
+		percentile90 = percentile50
+	}
+
+	if percentile90 > 0 && percentile99 == 0 {
+		percentile99 = percentile90
+	}
+
 	return &RequestDuration{
 		percentile50: percentile50,
 		percentile90: percentile90,

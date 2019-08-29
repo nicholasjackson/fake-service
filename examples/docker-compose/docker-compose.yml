@@ -26,9 +26,9 @@ services:
       MESSAGE: "API response"
       NAME: "api"
       SERVER_TYPE: "grpc"
-      TIMING_50_PERCENTILE: 10ms
-      TIMING_90_PERCENTILE: 20ms
-      TIMING_99_PERCENTILE: 30ms
+      TIMING_50_PERCENTILE: 20ms
+      TIMING_90_PERCENTILE: 30ms
+      TIMING_99_PERCENTILE: 40ms
       TIMING_VARIANCE: 10
       TRACING_ZIPKIN: "http://jaeger:9411"
   
