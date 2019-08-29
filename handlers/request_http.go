@@ -66,6 +66,9 @@ func NewRequest(
 func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	rq.logger.Info("Handling request", "request", formatRequest(r))
 
+	// start timing the service this is used later for the total request time
+	ts := time.Now()
+
 	var serverSpan opentracing.Span
 	wireContext, err := opentracing.GlobalTracer().Extract(
 		opentracing.HTTPHeaders,
@@ -84,18 +87,6 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	serverSpan.LogFields(log.String("service.type", "http"))
 
 	defer serverSpan.Finish()
-
-	// randomize the time the request takes
-	d := rq.duration.Calculate()
-	sp := serverSpan.Tracer().StartSpan(
-		"service_delay",
-		opentracing.ChildOf(serverSpan.Context()),
-	)
-
-	// wait for a predetermined time
-	time.Sleep(d)
-
-	sp.Finish()
 
 	data := []byte(fmt.Sprintf("# Reponse from: %s #\n%s\n", rq.name, rq.message))
 	// if we need to create upstream requests create a worker pool
@@ -119,6 +110,23 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 
 		data = append(data, processResponses(wp.Responses())...)
 	}
+
+	// randomize the time the request takes
+	d := rq.duration.Calculate()
+	sp := serverSpan.Tracer().StartSpan(
+		"service_delay",
+		opentracing.ChildOf(serverSpan.Context()),
+	)
+
+	// service time is equal to the randomised time - the current time take
+	et := time.Now().Sub(ts)
+	rd := et - d
+	if rd > 0 {
+		time.Sleep(rd)
+	}
+
+	sp.LogFields(log.String("randomized_duration", d.String()))
+	sp.Finish()
 
 	rw.Write(data)
 }

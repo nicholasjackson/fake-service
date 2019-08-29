@@ -2,20 +2,23 @@ version: "3.3"
 services:
 
   web:
-    image: nicholasjackson/fake-service:v0.3.3
+    image: nicholasjackson/fake-service:v0.3.4
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "grpc://api:9090"
       MESSAGE: "Hello World"
       NAME: "web"
       SERVER_TYPE: "http"
-      HTTP_CLIENT_KEEP_ALIVES: "false"
+      TIMING_50_PERCENTILE: 30ms
+      TIMING_90_PERCENTILE: 60ms
+      TIMING_99_PERCENTILE: 90ms
+      TIMING_VARIANCE: 10
       TRACING_ZIPKIN: "http://jaeger:9411"
     ports:
       - "9090:9090"
   
   api:
-    image: nicholasjackson/fake-service:v0.3.3
+    image: nicholasjackson/fake-service:v0.3.4
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://payments:9090, http://cache:9090"
@@ -23,38 +26,42 @@ services:
       MESSAGE: "API response"
       NAME: "api"
       SERVER_TYPE: "grpc"
-      HTTP_CLIENT_KEEP_ALIVES: "false"
+      TIMING_50_PERCENTILE: 10ms
+      TIMING_90_PERCENTILE: 20ms
+      TIMING_99_PERCENTILE: 30ms
+      TIMING_VARIANCE: 10
       TRACING_ZIPKIN: "http://jaeger:9411"
   
   cache:
-    image: nicholasjackson/fake-service:v0.3.3
+    image: nicholasjackson/fake-service:v0.3.4
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
       NAME: "cache"
       SERVER_TYPE: "http"
-      HTTP_CLIENT_KEEP_ALIVES: "false"
+      TIMING_50_PERCENTILE: 1ms
+      TIMING_90_PERCENTILE: 2ms
+      TIMING_99_PERCENTILE: 3ms
+      TIMING_VARIANCE: 10
       TRACING_ZIPKIN: "http://jaeger:9411"
   
   payments:
-    image: nicholasjackson/fake-service:v0.3.3
+    image: nicholasjackson/fake-service:v0.3.4
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://currency:9090"
       MESSAGE: "Payments response"
       NAME: "payments"
       SERVER_TYPE: "http"
-      HTTP_CLIENT_KEEP_ALIVES: "false"
       TRACING_ZIPKIN: "http://jaeger:9411"
   
   currency:
-    image: nicholasjackson/fake-service:v0.3.3
+    image: nicholasjackson/fake-service:v0.3.4
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
       NAME: "currency"
       SERVER_TYPE: "http"
-      HTTP_CLIENT_KEEP_ALIVES: "false"
       TRACING_ZIPKIN: "http://jaeger:9411"
 
   jaeger:
