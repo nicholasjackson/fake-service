@@ -64,11 +64,11 @@ func TestRequestCompletesWithHTTPUpstreams(t *testing.T) {
 	h, c, _ := setupRequest(t, []string{"http://something.com"})
 
 	// setup the upstream response
-	c.On("Do", mock.Anything).Return([]byte("# Response from: upstream #\nOK\n"), nil)
+	c.On("Do", mock.Anything, mock.Anything).Return([]byte("# Response from: upstream #\nOK\n"), nil)
 
 	h.Handle(rr, r)
 
-	c.AssertCalled(t, "Do", mock.Anything)
+	c.AssertCalled(t, "Do", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(
 		t,
@@ -82,11 +82,11 @@ func TestReturnsErrorWithHTTPUpstreamError(t *testing.T) {
 	h, c, _ := setupRequest(t, []string{"http://something.com"})
 
 	// setup the error
-	c.On("Do", mock.Anything).Return(nil, fmt.Errorf("Boom"))
+	c.On("Do", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("Boom"))
 
 	h.Handle(rr, r)
 
-	c.AssertCalled(t, "Do", mock.Anything)
+	c.AssertCalled(t, "Do", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.Equal(t, "Boom\n", rr.Body.String())
 }

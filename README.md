@@ -22,12 +22,14 @@ Environment variables:
        IP address and port to bind service to
   HTTP_CLIENT_KEEP_ALIVES  default: 'true'
        Enable HTTP connection keep alives for upstream calls
+  HTTP_CLIENT_APPEND_REQUEST default: 'false'
+       When true the path, querystring, and headers sent to the service will be appended to any upstream calls
   TIMING_50_PERCENTILE  default: '1ms'
        Median duration for a request
   TIMING_90_PERCENTILE  default: '1ms'
-       90 percentile duration for a request
+       90 percentile duration for a request, if no value is set, will use value from TIMING_50_PERCENTILE
   TIMING_99_PERCENTILE  default: '1ms'
-       99 percentile duration for a request
+       99 percentile duration for a request, if no value is set, will use value from TIMING_90_PERCENTILE
   TIMING_VARIANCE  default: '0'
        Percentage variance for each request, every request will vary by a random amount to a maximum of a percentage of the total request time
   ERROR_RATE  default: '0'

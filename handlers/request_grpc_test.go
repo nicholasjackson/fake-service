@@ -47,12 +47,12 @@ func TestGRPCServiceHandlesRequestWithNoUpstream(t *testing.T) {
 func TestGRPCServiceHandlesRequestWithHTTPUpstream(t *testing.T) {
 	uris := []string{"http://test.com"}
 	fs, mc, _ := setupFakeServer(t, uris)
-	mc.On("Do", mock.Anything).Return([]byte("# Response from: upstream #\nOK\n"), nil)
+	mc.On("Do", mock.Anything, mock.Anything).Return([]byte("# Response from: upstream #\nOK\n"), nil)
 
 	resp, err := fs.Handle(context.Background(), nil)
 
 	assert.Nil(t, err)
-	mc.AssertCalled(t, "Do", mock.Anything)
+	mc.AssertCalled(t, "Do", mock.Anything, mock.Anything)
 	assert.Equal(t, "# Reponse from: test #\nhello world\n## Called upstream uri: http://test.com\n  # Response from: upstream #\n  OK\n  ", resp.Message)
 }
 
