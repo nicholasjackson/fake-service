@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP) (string, error) {
+func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request) (string, error) {
 	httpReq, _ := http.NewRequest("GET", uri, nil)
 
 	clientSpan := opentracing.StartSpan(
@@ -35,7 +35,7 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(httpReq.Header))
 
-	resp, err := defaultClient.Do(httpReq)
+	resp, err := defaultClient.Do(httpReq, pr)
 	clientSpan.Finish()
 
 	if err != nil {

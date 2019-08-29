@@ -46,14 +46,15 @@ services:
       TRACING_ZIPKIN: "http://jaeger:9411"
   
   payments:
-    image: nicholasjackson/fake-service:v0.3.4
+    image: nicholasjackson/fake-service:v0.3.5
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
-      UPSTREAM_URIS: "http://currency:9090"
+      UPSTREAM_URIS: "http://currency:9090/12434/jackson?auth=true"
       MESSAGE: "Payments response"
       NAME: "payments"
       SERVER_TYPE: "http"
       TRACING_ZIPKIN: "http://jaeger:9411"
+      HTTP_CLIENT_APPEND_REQUEST: "true"
   
   currency:
     image: nicholasjackson/fake-service:v0.3.4

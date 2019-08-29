@@ -88,7 +88,7 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	if len(f.upstreamURIs) > 0 {
 		wp := worker.New(f.workerCount, f.logger, func(uri string) (string, error) {
 			if strings.HasPrefix(uri, "http://") {
-				return workerHTTP(serverSpan.Context(), uri, f.defaultClient)
+				return workerHTTP(serverSpan.Context(), uri, f.defaultClient, nil)
 			}
 
 			return workerGRPC(serverSpan.Context(), uri, f.grpcClients)

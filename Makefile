@@ -1,4 +1,4 @@
-version=v0.3.4
+version=v0.3.5
 
 protos:
 	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api

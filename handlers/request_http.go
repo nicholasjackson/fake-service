@@ -94,7 +94,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		wp := worker.New(rq.workerCount, rq.logger, func(uri string) (string, error) {
 			if strings.HasPrefix(uri, "http://") {
 				rq.logger.Info("Calling upstream HTTP service", "uri", uri)
-				return workerHTTP(serverSpan.Context(), uri, rq.defaultClient)
+				return workerHTTP(serverSpan.Context(), uri, rq.defaultClient, r)
 			}
 
 			rq.logger.Info("Calling upstream HTTP service", "uri", uri)

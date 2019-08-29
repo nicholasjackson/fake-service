@@ -12,8 +12,8 @@ type MockHTTP struct {
 }
 
 // Do implements the HTTP interface method
-func (m *MockHTTP) Do(r *http.Request) ([]byte, error) {
-	args := m.Called(r)
+func (m *MockHTTP) Do(r, pr *http.Request) ([]byte, error) {
+	args := m.Called(r, pr)
 
 	if d := args.Get(0); d != nil {
 		return d.([]byte), nil

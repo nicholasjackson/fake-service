@@ -31,6 +31,7 @@ var listenAddress = env.String("LISTEN_ADDR", false, "0.0.0.0:9090", "IP address
 
 // Upstream client configuration
 var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, true, "Enable HTTP connection keep alives for upstream calls")
+var upstreamAppendRequest = env.Bool("HTTP_CLIENT_APPEND_REQUEST", false, true, "When true the path querystring and any headers sent to the service will be appended to any upstream calls")
 
 // Service timing
 var timing50Percentile = env.Duration("TIMING_50_PERCENTILE", false, time.Duration(0*time.Millisecond), "Median duration for a request")
@@ -78,7 +79,7 @@ func main() {
 	)
 
 	// create the httpClient
-	defaultClient := client.NewHTTP(*upstreamClientKeepAlives)
+	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest)
 
 	// build the map of gRPCClients
 	grpcClients := make(map[string]client.GRPC)
@@ -109,6 +110,7 @@ func main() {
 		"upstreamWorkers", *upstreamWorkers,
 		"listenAddress", *listenAddress,
 		"http_client_keep_alives", *upstreamClientKeepAlives,
+		"http_append_request", *upstreamAppendRequest,
 		"service type", *serviceType,
 		"zipkin_endpoint", *zipkinEndpoint,
 	)

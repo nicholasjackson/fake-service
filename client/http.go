@@ -8,16 +8,17 @@ import (
 
 // HTTP defines an interface for upstream HTTP client requests
 type HTTP interface {
-	Do(r *http.Request) ([]byte, error)
+	Do(r *http.Request, pr *http.Request) ([]byte, error)
 }
 
 // HTTPImpl is the concrete implementation of the HTTP interface
 type HTTPImpl struct {
 	defaultClient *http.Client
+	appendRequest bool // should we append the headers path and query from the original request
 }
 
 // NewHTTP creates a new HTTP client
-func NewHTTP(upstreamClientKeepAlives bool) HTTP {
+func NewHTTP(upstreamClientKeepAlives bool, appendRequest bool) HTTP {
 	client := &http.Client{
 		Transport: &http.Transport{
 			DisableKeepAlives: !upstreamClientKeepAlives,
@@ -26,12 +27,19 @@ func NewHTTP(upstreamClientKeepAlives bool) HTTP {
 
 	return &HTTPImpl{
 		defaultClient: client,
+		appendRequest: appendRequest,
 	}
 }
 
 // Do makes the upstream request and returns a response
-func (h *HTTPImpl) Do(r *http.Request) ([]byte, error) {
+func (h *HTTPImpl) Do(r *http.Request, pr *http.Request) ([]byte, error) {
 	var data []byte
+
+	// do we need to append the headers, path and querystring from the original request?
+	if pr != nil && h.appendRequest == true {
+		appendHeaders(r, pr)
+		appendPath(r, pr)
+	}
 
 	// call the upstream service
 	resp, err := h.defaultClient.Do(r)
@@ -51,4 +59,21 @@ func (h *HTTPImpl) Do(r *http.Request) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// appendHeaders from the original request
+func appendHeaders(r, pr *http.Request) {
+	for k, v := range pr.Header {
+		if r.Header.Get(k) == "" {
+			for _, vv := range v {
+				r.Header.Set(k, vv)
+			}
+		}
+	}
+}
+
+// appendPath from the original request to this request
+func appendPath(r, pr *http.Request) {
+	op := pr.URL.Path
+	r.URL.Path = r.URL.Path + op
 }
