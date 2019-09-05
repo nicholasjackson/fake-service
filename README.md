@@ -85,22 +85,47 @@ cache_1     | 2019-08-16T12:15:01.439Z [INFO]  Starting service: name=cache mess
 
 Then curl the web endpoint:
 ```
-$ curl localhost:9090
-# Reponse from: web #
-Hello World
-## Called upstream uri: grpc://api:9090
-  # Reponse from: api #
-  API response
-  ## Called upstream uri: http://cache:9090
-    # Reponse from: cache #
-    Cache response
-
-  ## Called upstream uri: http://payments:9090
-    # Reponse from: payments #
-    Payments response
-    ## Called upstream uri: http://currency:9090
-      # Reponse from: currency #
-      Currency response
+➜ curl -s localhost:9090 | jq
+{
+  "name": "web",
+  "type": "HTTP",
+  "duration": "25.4975ms",
+  "body": "Hello World",
+  "upstream_calls": [
+    {
+      "name": "api",
+      "uri": "grpc://api:9090",
+      "type": "gRPC",
+      "duration": "20.8857ms",
+      "body": "API response",
+      "upstream_calls": [
+        {
+          "name": "payments",
+          "uri": "http://payments:9090",
+          "type": "HTTP",
+          "duration": "8.462ms",
+          "body": "Payments response",
+          "upstream_calls": [
+            {
+              "name": "currency",
+              "uri": "http://currency:9090/12434/jackson?auth=true",
+              "type": "HTTP",
+              "duration": "224.9µs",
+              "body": "Currency response"
+            }
+          ]
+        },
+        {
+          "name": "cache",
+          "uri": "http://cache:9090",
+          "type": "HTTP",
+          "duration": "500.5µs",
+          "body": "Cache response"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 Tracing data can be seen using Jaeger which is running at `http://localhost:16686`.
