@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/grpc/api"
+	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -82,11 +83,13 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 
 	defer serverSpan.Finish()
 
-	data := []byte(fmt.Sprintf("# Reponse from: %s #\n%s\n", f.name, f.message))
+	resp := &response.Response{}
+	resp.Name = f.name
+	resp.Body = f.message
 
 	// if we need to create upstream requests create a worker pool
 	if len(f.upstreamURIs) > 0 {
-		wp := worker.New(f.workerCount, f.logger, func(uri string) (string, error) {
+		wp := worker.New(f.workerCount, f.logger, func(uri string) (*response.Response, error) {
 			if strings.HasPrefix(uri, "http://") {
 				return workerHTTP(serverSpan.Context(), uri, f.defaultClient, nil)
 			}
@@ -101,7 +104,9 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 			return nil, err
 		}
 
-		data = append(data, processResponses(wp.Responses())...)
+		for _, v := range wp.Responses() {
+			resp.AppendUpstream(v.Response)
+		}
 	}
 
 	// randomize the time the request takes
@@ -124,7 +129,11 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		time.Sleep(rd)
 	}
 
-	return &api.Response{Message: string(data)}, nil
+	et = time.Now().Sub(ts)
+	resp.Duration = et.String()
+	resp.Type = "gRPC"
+
+	return &api.Response{Message: resp.ToJSON()}, nil
 }
 
 func printContext(ctx context.Context) string {

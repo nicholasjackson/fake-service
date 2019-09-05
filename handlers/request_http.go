@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/tracing"
 	"github.com/nicholasjackson/fake-service/worker"
@@ -88,10 +88,13 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 
 	defer serverSpan.Finish()
 
-	data := []byte(fmt.Sprintf("# Reponse from: %s #\n%s\n", rq.name, rq.message))
+	resp := &response.Response{}
+	resp.Name = rq.name
+	resp.Body = rq.message
+
 	// if we need to create upstream requests create a worker pool
 	if len(rq.upstreamURIs) > 0 {
-		wp := worker.New(rq.workerCount, rq.logger, func(uri string) (string, error) {
+		wp := worker.New(rq.workerCount, rq.logger, func(uri string) (*response.Response, error) {
 			if strings.HasPrefix(uri, "http://") {
 				rq.logger.Info("Calling upstream HTTP service", "uri", uri)
 				return workerHTTP(serverSpan.Context(), uri, rq.defaultClient, r)
@@ -108,7 +111,9 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		data = append(data, processResponses(wp.Responses())...)
+		for _, v := range wp.Responses() {
+			resp.AppendUpstream(v.Response)
+		}
 	}
 
 	// randomize the time the request takes
@@ -119,10 +124,14 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	)
 	defer sp.Finish()
 
-	rw.Write(data)
+	et := time.Now().Sub(ts)
+	resp.Duration = et.String()
+	resp.Type = "HTTP"
+
+	rw.Write([]byte(resp.ToJSON()))
 
 	// service time is equal to the randomised time - the current time take
-	et := time.Now().Sub(ts)
+	et = time.Now().Sub(ts)
 	rd := d - et
 
 	rq.logger.Info("Service Duration", "elapsed_time", et.String(), "calculated_duration", d.String(), "sleep_time", rd.String())

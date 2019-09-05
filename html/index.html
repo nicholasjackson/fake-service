@@ -1,0 +1,61 @@
+<html>
+
+<head>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+    integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+  <script type="text/javascript">
+    google.charts.load("current", { packages: ["timeline"] });
+    google.charts.setOnLoadCallback(drawChart);
+    function drawChart() {
+      var container = document.getElementById('chart_div');
+      var chart = new google.visualization.Timeline(container);
+      var dataTable = new google.visualization.DataTable();
+      dataTable.addColumn({ type: 'string', id: 'ID' });
+      dataTable.addColumn({ type: 'string', id: 'Name' });
+      dataTable.addColumn({ type: 'date', id: 'Start' });
+      dataTable.addColumn({ type: 'date', id: 'End' });
+      dataTable.addRows([
+        ['1', 'Web (24ms)', new Date(2020, 1, 1, 0, 0, 0, 0), new Date(2020, 1, 1, 0, 0, 0, 24)],
+        ['2', 'API (22ms)', new Date(2020, 1, 1, 0, 0, 0, 2), new Date(2020, 1, 1, 0, 0, 0, 24)],
+        ['3', 'Payments (8ms)', new Date(2020, 1, 1, 0, 0, 0, 4), new Date(2020, 1, 1, 0, 0, 0, 12)],
+        ['4', 'Currency (6ms)', new Date(2020, 1, 1, 0, 0, 0, 4), new Date(2020, 1, 1, 0, 0, 0, 10)],
+      ]);
+
+      var options = {
+        timeline: {
+          showRowLabels: false,
+
+        }
+      };
+
+      chart.draw(dataTable, options);
+    }
+  </script>
+
+  <style>
+    h1 {
+      margin-bottom: 40px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 class="display-1">Fake Service</h1>
+
+  <script src=" https://code.jquery.com/jquery-3.3.1.slim.min.js"
+    integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous">
+    </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+    integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+    integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+    crossorigin="anonymous"></script>
+
+
+  <div id="chart_div" style="height: 500px"></div>
+</body>
+
+</html>

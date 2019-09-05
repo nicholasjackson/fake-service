@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/grpc/api"
+	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -36,7 +37,7 @@ func setupRequest(t *testing.T, uris []string) (*Request, *client.MockHTTP, map[
 
 	return &Request{
 		name:          "test",
-		message:       "test message",
+		message:       "hello world",
 		logger:        hclog.Default(),
 		duration:      d,
 		upstreamURIs:  uris,
@@ -52,28 +53,38 @@ func TestRequestCompletesWithNoUpstreams(t *testing.T) {
 	h, c, _ := setupRequest(t, nil)
 
 	h.Handle(rr, r)
+	mr := response.Response{}
+	mr.FromJSON([]byte(rr.Body.String()))
 
 	c.AssertNotCalled(t, "Do", mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "# Reponse from: test #\ntest message\n", rr.Body.String())
+	assert.Equal(t, "test", mr.Name)
+	assert.Equal(t, "hello world", mr.Body)
+	assert.Len(t, mr.UpstreamCalls, 0)
 }
 
 func TestRequestCompletesWithHTTPUpstreams(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
-	h, c, _ := setupRequest(t, []string{"http://something.com"})
+	h, c, _ := setupRequest(t, []string{"http://test.com"})
 
 	// setup the upstream response
-	c.On("Do", mock.Anything, mock.Anything).Return([]byte("# Response from: upstream #\nOK\n"), nil)
+	c.On("Do", mock.Anything, mock.Anything).Return([]byte(`{"name": "upstream", "body": "OK"}`), nil)
 
 	h.Handle(rr, r)
 
 	c.AssertCalled(t, "Do", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(
-		t,
-		"# Reponse from: test #\ntest message\n## Called upstream uri: http://something.com\n  # Response from: upstream #\n  OK\n  ",
-		rr.Body.String())
+	mr := response.Response{}
+	mr.FromJSON([]byte(rr.Body.String()))
+
+	c.AssertNotCalled(t, "Do", mock.Anything)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "test", mr.Name)
+	assert.Equal(t, "hello world", mr.Body)
+	assert.Len(t, mr.UpstreamCalls, 1)
+	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
+	assert.Equal(t, "http://test.com", mr.UpstreamCalls[0].URI)
 }
 
 func TestReturnsErrorWithHTTPUpstreamError(t *testing.T) {
@@ -94,20 +105,23 @@ func TestReturnsErrorWithHTTPUpstreamError(t *testing.T) {
 func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
-	h, _, gc := setupRequest(t, []string{"grpc://something.com"})
+	h, _, gc := setupRequest(t, []string{"grpc://test.com"})
 
 	// setup the upstream response
-	gcMock := gc["grpc://something.com"].(*client.MockGRPC)
-	gcMock.On("Handle", mock.Anything, mock.Anything).Return(&api.Response{Message: "# Response from: upstream #\nOK\n"}, nil)
+	gcMock := gc["grpc://test.com"].(*client.MockGRPC)
+	gcMock.On("Handle", mock.Anything, mock.Anything).Return(&api.Response{Message: `{"name": "upstream", "body": "OK"}`}, nil)
 
 	h.Handle(rr, r)
+	mr := response.Response{}
+	mr.FromJSON([]byte(rr.Body.String()))
 
 	gcMock.AssertCalled(t, "Handle", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(
-		t,
-		"# Reponse from: test #\ntest message\n## Called upstream uri: grpc://something.com\n  # Response from: upstream #\n  OK\n  ",
-		rr.Body.String())
+	assert.Equal(t, "test", mr.Name)
+	assert.Equal(t, "hello world", mr.Body)
+	assert.Len(t, mr.UpstreamCalls, 1)
+	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
+	assert.Equal(t, "grpc://test.com", mr.UpstreamCalls[0].URI)
 }
 
 func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {

@@ -5,16 +5,17 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/nicholasjackson/fake-service/response"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUpstreamWorkerWithSingleURIAndSingleWorker(t *testing.T) {
 	callCount := 0
 	l := hclog.New(&hclog.LoggerOptions{Level: hclog.Debug})
-	w := New(1, l, func(uri string) (string, error) {
+	w := New(1, l, func(uri string) (*response.Response, error) {
 		callCount++
 
-		return "", nil
+		return &response.Response{}, nil
 	})
 
 	w.Do([]string{"123"})
@@ -25,10 +26,10 @@ func TestUpstreamWorkerWithSingleURIAndSingleWorker(t *testing.T) {
 func TestUpstreamWorkerWithTwoURIAndSingleWorker(t *testing.T) {
 	callCount := 0
 	l := hclog.New(&hclog.LoggerOptions{Level: hclog.Debug})
-	w := New(1, l, func(uri string) (string, error) {
+	w := New(1, l, func(uri string) (*response.Response, error) {
 		callCount++
 
-		return "", nil
+		return &response.Response{}, nil
 	})
 
 	w.Do([]string{"123", "abc"})
@@ -43,13 +44,13 @@ func TestUpstreamWorkerWithTwoURIAndTwoWorkers(t *testing.T) {
 	sleepTime := []time.Duration{20 * time.Millisecond, 10 * time.Millisecond}
 
 	l := hclog.New(&hclog.LoggerOptions{Level: hclog.Debug})
-	w := New(2, l, func(uri string) (string, error) {
+	w := New(2, l, func(uri string) (*response.Response, error) {
 		startOrder = append(startOrder, uri)
 		callCount++
 		time.Sleep(sleepTime[callCount-1])
 		calls = append(calls, uri)
 
-		return "", nil
+		return &response.Response{}, nil
 	})
 
 	w.Do([]string{"123", "abc"})

@@ -8,6 +8,7 @@ import (
 
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/grpc/api"
+	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -15,7 +16,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request) (string, error) {
+func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request) (*response.Response, error) {
 	httpReq, _ := http.NewRequest("GET", uri, nil)
 
 	clientSpan := opentracing.StartSpan(
@@ -39,13 +40,22 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 	clientSpan.Finish()
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(resp), nil
+	r := &response.Response{}
+	err = r.FromJSON(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	// set the local URI for the upstream
+	r.URI = uri
+
+	return r, nil
 }
 
-func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC) (string, error) {
+func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC) (*response.Response, error) {
 	c := grpcClients[uri]
 
 	clientSpan := opentracing.StartSpan(
@@ -68,14 +78,23 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 
 	outCtx := metadata.NewOutgoingContext(context.Background(), md)
 
-	r, err := c.Handle(outCtx, &api.Nil{})
+	resp, err := c.Handle(outCtx, &api.Nil{})
 	clientSpan.Finish()
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return r.Message, nil
+	r := &response.Response{}
+	err = r.FromJSON([]byte(resp.Message))
+	if err != nil {
+		return nil, err
+	}
+
+	// set the local URI for the upstream
+	r.URI = uri
+
+	return r, nil
 }
 
 func processResponses(responses []worker.Done) []byte {
@@ -84,11 +103,13 @@ func processResponses(responses []worker.Done) []byte {
 	// append the output from the upstreams
 	for _, r := range responses {
 		respLines = append(respLines, fmt.Sprintf("## Called upstream uri: %s", r.URI))
-		// indent the reposne from the upstream
-		lines := strings.Split(r.Message, "\n")
-		for _, l := range lines {
-			respLines = append(respLines, fmt.Sprintf("  %s", l))
-		}
+		/*
+			// indent the reposne from the upstream
+			lines := strings.Split(r.Message, "\n")
+			for _, l := range lines {
+				respLines = append(respLines, fmt.Sprintf("  %s", l))
+			}
+		*/
 	}
 
 	return []byte(strings.Join(respLines, "\n"))

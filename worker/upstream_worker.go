@@ -4,15 +4,16 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/nicholasjackson/fake-service/response"
 )
 
 // WorkFunc defines a function which is called when work is to be done
-type WorkFunc func(uri string) (string, error)
+type WorkFunc func(uri string) (*response.Response, error)
 
 // Done is a message sent when an upstream worker has completed
 type Done struct {
-	URI     string
-	Message string
+	URI      string
+	Response *response.Response
 }
 
 // UpstreamWorker manages parallel upstream requests
