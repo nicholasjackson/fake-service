@@ -1,6 +1,9 @@
 package response
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 type Response struct {
 	Name          string     `json:"name,omitempty"`
@@ -12,12 +15,16 @@ type Response struct {
 }
 
 func (r *Response) ToJSON() string {
-	d, err := json.Marshal(r)
+	buffer := new(bytes.Buffer)
+	encoder := json.NewEncoder(buffer)
+	encoder.SetIndent("", "  ")
+
+	err := encoder.Encode(r)
 	if err != nil {
 		panic(err)
 	}
 
-	return string(d)
+	return buffer.String()
 }
 
 func (r *Response) FromJSON(d []byte) error {
