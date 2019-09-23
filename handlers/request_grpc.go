@@ -15,7 +15,9 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // FakeServer implements the gRPC interface
@@ -87,6 +89,7 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	resp.Name = f.name
 	resp.Body = f.message
 
+	var upstreamError error
 	// if we need to create upstream requests create a worker pool
 	if len(f.upstreamURIs) > 0 {
 		wp := worker.New(f.workerCount, f.logger, func(uri string) (*response.Response, error) {
@@ -99,14 +102,25 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 
 		err := wp.Do(f.upstreamURIs)
 
-		if err != nil {
-			f.logger.Error("Error making upstream call", "error", err)
-			return nil, err
-		}
-
 		for _, v := range wp.Responses() {
 			resp.AppendUpstream(v.Response)
 		}
+
+		if err != nil {
+			f.logger.Error("Error making upstream call", "error", err)
+			upstreamError = err
+		}
+	}
+
+	et := time.Now().Sub(ts)
+	resp.Duration = et.String()
+	resp.Type = "gRPC"
+
+	if upstreamError != nil {
+		resp.Code = int(codes.Internal)
+		resp.Error = err.Error()
+
+		return &api.Response{Message: resp.ToJSON()}, status.New(codes.Internal, err.Error()).Err()
 	}
 
 	// randomize the time the request takes
@@ -118,7 +132,7 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	defer sp.Finish()
 
 	// service time is equal to the randomised time - the current time take
-	et := time.Now().Sub(ts)
+	et = time.Now().Sub(ts)
 	rd := d - et
 
 	f.logger.Info("Service Duration", "elapsed_time", et.String(), "calculated_duration", d.String(), "sleep_time", rd.String())
@@ -128,10 +142,6 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		f.logger.Info("Sleeping for", "duration", rd.String())
 		time.Sleep(rd)
 	}
-
-	et = time.Now().Sub(ts)
-	resp.Duration = et.String()
-	resp.Type = "gRPC"
 
 	return &api.Response{Message: resp.ToJSON()}, nil
 }

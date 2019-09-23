@@ -14,6 +14,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request) (*response.Response, error) {
@@ -36,23 +37,34 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(httpReq.Header))
 
-	resp, err := defaultClient.Do(httpReq, pr)
-	clientSpan.Finish()
+	defer clientSpan.Finish()
+
+	code, resp, err := defaultClient.Do(httpReq, pr)
+
+	clientSpan.SetTag("ResponseCode", code)
 
 	if err != nil {
-		return nil, err
+		clientSpan.LogFields(log.Error(err))
 	}
 
 	r := &response.Response{}
-	err = r.FromJSON(resp)
-	if err != nil {
-		return nil, err
+
+	if resp != nil {
+		jsonerr := r.FromJSON(resp)
+		if jsonerr != nil {
+			return nil, jsonerr
+		}
 	}
 
 	// set the local URI for the upstream
 	r.URI = uri
+	r.Code = code
 
-	return r, nil
+	if err != nil {
+		r.Error = err.Error()
+	}
+
+	return r, err
 }
 
 func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC) (*response.Response, error) {
@@ -79,20 +91,33 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 	outCtx := metadata.NewOutgoingContext(context.Background(), md)
 
 	resp, err := c.Handle(outCtx, &api.Nil{})
-	clientSpan.Finish()
-
-	if err != nil {
-		return nil, err
-	}
 
 	r := &response.Response{}
-	err = r.FromJSON([]byte(resp.Message))
 	if err != nil {
-		return nil, err
+		r.Error = err.Error()
+		clientSpan.LogFields(log.Error(err))
+		if s, ok := status.FromError(err); ok {
+			clientSpan.SetTag("ResponseCode", s.Code())
+			r.Code = int(s.Code())
+		}
+	}
+
+	clientSpan.Finish()
+
+	if resp != nil {
+		jsonerr := r.FromJSON([]byte(resp.Message))
+		if err != nil {
+			return nil, jsonerr
+		}
 	}
 
 	// set the local URI for the upstream
 	r.URI = uri
+
+	if err != nil {
+		r.Error = err.Error()
+		return r, err
+	}
 
 	return r, nil
 }

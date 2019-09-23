@@ -8,7 +8,7 @@ import (
 
 // HTTP defines an interface for upstream HTTP client requests
 type HTTP interface {
-	Do(r *http.Request, pr *http.Request) ([]byte, error)
+	Do(r *http.Request, pr *http.Request) (int, []byte, error)
 }
 
 // HTTPImpl is the concrete implementation of the HTTP interface
@@ -32,7 +32,7 @@ func NewHTTP(upstreamClientKeepAlives bool, appendRequest bool) HTTP {
 }
 
 // Do makes the upstream request and returns a response
-func (h *HTTPImpl) Do(r *http.Request, pr *http.Request) ([]byte, error) {
+func (h *HTTPImpl) Do(r *http.Request, pr *http.Request) (int, []byte, error) {
 	var data []byte
 
 	// do we need to append the headers, path and querystring from the original request?
@@ -44,21 +44,21 @@ func (h *HTTPImpl) Do(r *http.Request, pr *http.Request) ([]byte, error) {
 	// call the upstream service
 	resp, err := h.defaultClient.Do(r)
 	if err != nil {
-		return nil, fmt.Errorf("Error communicating with upstream service: %s", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Expected status 200 from service got %d", resp.StatusCode)
+		return -1, nil, fmt.Errorf("Error communicating with upstream service: %s", err)
 	}
 
 	defer resp.Body.Close()
 
 	data, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading response body: %d", err)
+		return resp.StatusCode, nil, fmt.Errorf("Error reading response body: %d", err)
 	}
 
-	return data, nil
+	if resp.StatusCode != http.StatusOK {
+		return resp.StatusCode, data, fmt.Errorf("Error processing upstream request: %s", r.URL.String())
+	}
+
+	return resp.StatusCode, data, nil
 }
 
 // appendHeaders from the original request

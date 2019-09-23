@@ -12,6 +12,8 @@ type Response struct {
 	Duration      string     `json:"duration,omitempty"`
 	Body          string     `json:"body,omitempty"`
 	UpstreamCalls []Response `json:"upstream_calls,omitempty"`
+	Code          int        `json:"code"`
+	Error         string     `json:"error,omitempty"`
 }
 
 func (r *Response) ToJSON() string {
@@ -46,6 +48,10 @@ func (r *Response) AppendUpstreams(reps []*Response) {
 }
 
 func (r *Response) AppendUpstream(resp *Response) {
+	if resp == nil {
+		return
+	}
+
 	if r.UpstreamCalls == nil {
 		r.UpstreamCalls = make([]Response, 0)
 	}

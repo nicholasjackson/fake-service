@@ -16,6 +16,8 @@ import (
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func setupRequest(t *testing.T, uris []string) (*Request, *client.MockHTTP, map[string]client.GRPC) {
@@ -69,7 +71,7 @@ func TestRequestCompletesWithHTTPUpstreams(t *testing.T) {
 	h, c, _ := setupRequest(t, []string{"http://test.com"})
 
 	// setup the upstream response
-	c.On("Do", mock.Anything, mock.Anything).Return([]byte(`{"name": "upstream", "body": "OK"}`), nil)
+	c.On("Do", mock.Anything, mock.Anything).Return(http.StatusOK, []byte(`{"name": "upstream", "body": "OK"}`), nil)
 
 	h.Handle(rr, r)
 
@@ -87,19 +89,46 @@ func TestRequestCompletesWithHTTPUpstreams(t *testing.T) {
 	assert.Equal(t, "http://test.com", mr.UpstreamCalls[0].URI)
 }
 
-func TestReturnsErrorWithHTTPUpstreamError(t *testing.T) {
+func TestReturnsErrorWithHTTPUpstreamConnectionError(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
 	h, c, _ := setupRequest(t, []string{"http://something.com"})
 
 	// setup the error
-	c.On("Do", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("Boom"))
+	c.On("Do", mock.Anything, mock.Anything).Return(-1, nil, fmt.Errorf("Boom"))
 
 	h.Handle(rr, r)
+	mr := response.Response{}
+	mr.FromJSON(rr.Body.Bytes())
 
 	c.AssertCalled(t, "Do", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-	assert.Equal(t, "Boom\n", rr.Body.String())
+
+	assert.Equal(t, "test", mr.Name)
+	assert.Len(t, mr.UpstreamCalls, 1)
+	assert.Equal(t, -1, mr.UpstreamCalls[0].Code)
+
+	//pretty.Print(mr)
+}
+
+func TestReturnsErrorWithHTTPUpstreamHandleError(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
+	rr := httptest.NewRecorder()
+	h, c, _ := setupRequest(t, []string{"http://something.com"})
+
+	// setup the error
+	c.On("Do", mock.Anything, mock.Anything).Return(http.StatusInternalServerError, []byte(`{"name": "upstream", "code": 503, "error": "boom"}`), fmt.Errorf("Error processing upstream"))
+
+	h.Handle(rr, r)
+	mr := response.Response{}
+	mr.FromJSON([]byte(rr.Body.String()))
+
+	c.AssertCalled(t, "Do", mock.Anything, mock.Anything)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Equal(t, "test", mr.Name)
+	assert.Equal(t, http.StatusInternalServerError, mr.Code)
+	assert.Len(t, mr.UpstreamCalls, 1)
+	assert.Equal(t, http.StatusInternalServerError, mr.UpstreamCalls[0].Code)
 }
 
 func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
@@ -131,11 +160,14 @@ func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {
 
 	// setup the upstream response
 	gcMock := gc["grpc://something.com"].(*client.MockGRPC)
-	gcMock.On("Handle", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("Boom"))
+	gcMock.On("Handle", mock.Anything, mock.Anything).Return(nil, status.Error(codes.Internal, "Boom"))
 
 	h.Handle(rr, r)
+	mr := response.Response{}
+	mr.FromJSON([]byte(rr.Body.String()))
+	//pretty.Print(mr)
 
 	gcMock.AssertCalled(t, "Handle", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-	assert.Equal(t, "Boom\n", rr.Body.String())
+	assert.Equal(t, "test", mr.Name)
 }

@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -52,7 +54,27 @@ func TestGRPCServiceHandlesRequestWithNoUpstream(t *testing.T) {
 func TestGRPCServiceHandlesRequestWithHTTPUpstream(t *testing.T) {
 	uris := []string{"http://test.com"}
 	fs, mc, _ := setupFakeServer(t, uris)
-	mc.On("Do", mock.Anything, mock.Anything).Return([]byte(`{"name": "upstream", "body": "OK"}`), nil)
+	mc.On("Do", mock.Anything, mock.Anything).Return(http.StatusInternalServerError, []byte(`{"name": "upstream", "error": "boom", "code": 500}`), fmt.Errorf("It went bang"))
+
+	resp, err := fs.Handle(context.Background(), nil)
+
+	assert.Error(t, err)
+	mc.AssertCalled(t, "Do", mock.Anything, mock.Anything)
+	mr := response.Response{}
+	mr.FromJSON([]byte(resp.Message))
+
+	assert.Equal(t, "test", mr.Name)
+	assert.Equal(t, "hello world", mr.Body)
+	assert.Equal(t, 13, mr.Code)
+	assert.Len(t, mr.UpstreamCalls, 1)
+	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
+	assert.Equal(t, 500, mr.UpstreamCalls[0].Code)
+}
+
+func TestGRPCServiceHandlesRequestWithHTTPUpstreamError(t *testing.T) {
+	uris := []string{"http://test.com"}
+	fs, mc, _ := setupFakeServer(t, uris)
+	mc.On("Do", mock.Anything, mock.Anything).Return(http.StatusOK, []byte(`{"name": "upstream", "body": "OK"}`), nil)
 
 	resp, err := fs.Handle(context.Background(), nil)
 
