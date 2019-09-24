@@ -46,6 +46,9 @@ var errorType = env.String("ERROR_TYPE", false, "http_error", "Type of error [ht
 var errorCode = env.Int("ERROR_CODE", false, http.StatusInternalServerError, "Error code to return on error")
 var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay [1s,100ms]")
 
+// rate limit request to the service
+var rateLimit = flag.Float64("RATE_LIMIT", 0, "Rate in req/second after which service will return 503")
+
 // metrics
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
 
