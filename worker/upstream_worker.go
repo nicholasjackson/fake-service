@@ -92,6 +92,8 @@ func (u *UpstreamWorker) worker() {
 		resp, err := u.workFunc(uri)
 
 		u.responses = append(u.responses, Done{uri, resp})
+		u.logger.Info("Received upstream response", "response", resp)
+
 		if err != nil {
 			u.logger.Error("Error processing upstream request", "uri", uri, "error", err)
 			u.errChan <- err

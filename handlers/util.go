@@ -106,7 +106,7 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 
 	if resp != nil {
 		jsonerr := r.FromJSON([]byte(resp.Message))
-		if err != nil {
+		if jsonerr != nil {
 			return nil, jsonerr
 		}
 	}

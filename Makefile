@@ -1,4 +1,4 @@
-version=v0.4.
+version=v0.5.1
 
 protos:
 	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
@@ -29,3 +29,9 @@ run_upstream_grpc:
 
 call_downstream:
 	curl localhost:9090
+
+test:
+	filewatcher --idle-timeout 24h gotestsum
+
+run_functional: build_docker
+	cd examples/docker-compose && docker-compose up

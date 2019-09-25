@@ -162,6 +162,8 @@ Error Injection can be configured using the following environment variables:
 
 All features for Error Injection are available for HTTP and gRPC services.
 
+**NOTE:** gRPC calls do not return a message when an error is returned
+
 ### Service Errors
 To simulate a HTTP service which returns an Internal Server Error (Status Code 500) error 20% of the time, the following command can be used:
 

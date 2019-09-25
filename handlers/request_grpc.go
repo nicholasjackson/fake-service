@@ -92,7 +92,7 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 
 	resp := &response.Response{}
 	resp.Name = f.name
-	resp.Body = f.message
+	resp.Type = "gRPC"
 
 	// are we injecting errors, if so return the error
 	if er := f.errorInjector.Do(); er != nil {
@@ -104,8 +104,8 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		return &api.Response{Message: resp.ToJSON()}, status.New(codes.Code(resp.Code), er.Error.Error()).Err()
 	}
 
-	var upstreamError error
 	// if we need to create upstream requests create a worker pool
+	var upstreamError error
 	if len(f.upstreamURIs) > 0 {
 		wp := worker.New(f.workerCount, f.logger, func(uri string) (*response.Response, error) {
 			if strings.HasPrefix(uri, "http://") {
@@ -129,13 +129,14 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 
 	et := time.Now().Sub(ts)
 	resp.Duration = et.String()
-	resp.Type = "gRPC"
 
 	if upstreamError != nil {
 		resp.Code = int(codes.Internal)
-		resp.Error = err.Error()
+		resp.Error = upstreamError.Error()
 
-		return &api.Response{Message: resp.ToJSON()}, status.New(codes.Internal, err.Error()).Err()
+		f.logger.Error("Service resulted in error, returning response", "response", resp)
+
+		return &api.Response{Message: resp.ToJSON()}, status.New(codes.Internal, upstreamError.Error()).Err()
 	}
 
 	// randomize the time the request takes
@@ -157,6 +158,9 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		f.logger.Info("Sleeping for", "duration", rd.String())
 		time.Sleep(rd)
 	}
+
+	// add the response body
+	resp.Body = f.message
 
 	return &api.Response{Message: resp.ToJSON()}, nil
 }

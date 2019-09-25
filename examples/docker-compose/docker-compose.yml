@@ -1,8 +1,10 @@
+---
+
 version: "3.3"
 services:
 
   web:
-    image: nicholasjackson/fake-service:v0.4.0
+    image: nicholasjackson/fake-service:v0.5.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "grpc://api:9090"
@@ -15,10 +17,10 @@ services:
       TIMING_VARIANCE: 10
       TRACING_ZIPKIN: "http://jaeger:9411"
     ports:
-      - "9090:9090"
-  
+    - "9090:9090"
+
   api:
-    image: nicholasjackson/fake-service:v0.4.0
+    image: nicholasjackson/fake-service:v0.5.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://payments:9090, http://cache:9090"
@@ -31,9 +33,9 @@ services:
       TIMING_99_PERCENTILE: 40ms
       TIMING_VARIANCE: 10
       TRACING_ZIPKIN: "http://jaeger:9411"
-  
+
   cache:
-    image: nicholasjackson/fake-service:v0.4.0
+    image: nicholasjackson/fake-service:v0.5.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
@@ -44,9 +46,9 @@ services:
       TIMING_99_PERCENTILE: 3ms
       TIMING_VARIANCE: 10
       TRACING_ZIPKIN: "http://jaeger:9411"
-  
+
   payments:
-    image: nicholasjackson/fake-service:v0.4.0
+    image: nicholasjackson/fake-service:v0.5.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://currency:9090/12434/jackson?auth=true"
@@ -57,12 +59,15 @@ services:
       HTTP_CLIENT_APPEND_REQUEST: "true"
 
   currency:
-    image: nicholasjackson/fake-service:v0.4.0
+    image: nicholasjackson/fake-service:v0.5.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
       NAME: "currency"
       SERVER_TYPE: "http"
+      ERROR_RATE: 0.5
+      ERROR_CODE: 500
+      ERROR_TYPE: "http_error"
       TRACING_ZIPKIN: "http://jaeger:9411"
 
   jaeger:
@@ -70,10 +75,10 @@ services:
     environment:
       COLLECTOR_ZIPKIN_HTTP_PORT: 9411
     ports:
-      - "5775:5775/udp"
-      - "6831:6831/udp"
-      - "6832:6832/udp"
-      - "5778:5778"
-      - "16686:16686"
-      - "14268:14268"
-      - "9411:9411"
+    - "5775:5775/udp"
+    - "6831:6831/udp"
+    - "6832:6832/udp"
+    - "5778:5778"
+    - "16686:16686"
+    - "14268:14268"
+    - "9411:9411"

@@ -90,7 +90,6 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 
 	resp := &response.Response{}
 	resp.Name = rq.name
-	resp.Body = rq.message
 	resp.Type = "HTTP"
 
 	// are we injecting errors, if so return the error
@@ -156,6 +155,9 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 
 	et = time.Now().Sub(ts)
 	resp.Duration = et.String()
+
+	// add the response body
+	resp.Body = rq.message
 
 	rw.Write([]byte(resp.ToJSON()))
 
