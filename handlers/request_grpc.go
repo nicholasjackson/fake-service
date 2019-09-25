@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
@@ -30,6 +31,7 @@ type FakeServer struct {
 	defaultClient client.HTTP
 	grpcClients   map[string]client.GRPC
 	logger        hclog.Logger
+	errorInjector *errors.Injector
 }
 
 // NewFakeServer creates a new instance of FakeServer
@@ -40,7 +42,9 @@ func NewFakeServer(
 	workerCount int,
 	defaultClient client.HTTP,
 	grpcClients map[string]client.GRPC,
-	l hclog.Logger) *FakeServer {
+	l hclog.Logger,
+	i *errors.Injector,
+) *FakeServer {
 
 	return &FakeServer{
 		name:          name,
@@ -51,6 +55,7 @@ func NewFakeServer(
 		defaultClient: defaultClient,
 		grpcClients:   grpcClients,
 		logger:        l,
+		errorInjector: i,
 	}
 }
 
@@ -88,6 +93,16 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	resp := &response.Response{}
 	resp.Name = f.name
 	resp.Body = f.message
+
+	// are we injecting errors, if so return the error
+	if er := f.errorInjector.Do(); er != nil {
+		resp.Code = er.Code
+		resp.Error = er.Error.Error()
+		serverSpan.LogFields(log.Error(er.Error))
+
+		// return the error
+		return &api.Response{Message: resp.ToJSON()}, status.New(codes.Code(resp.Code), er.Error.Error()).Err()
+	}
 
 	var upstreamError error
 	// if we need to create upstream requests create a worker pool

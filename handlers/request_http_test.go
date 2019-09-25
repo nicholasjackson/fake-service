@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
@@ -20,7 +21,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func setupRequest(t *testing.T, uris []string) (*Request, *client.MockHTTP, map[string]client.GRPC) {
+func setupRequest(t *testing.T, uris []string, errorRate float64) (*Request, *client.MockHTTP, map[string]client.GRPC) {
 	c := &client.MockHTTP{}
 	d := timing.NewRequestDuration(
 		1*time.Nanosecond,
@@ -37,6 +38,8 @@ func setupRequest(t *testing.T, uris []string) (*Request, *client.MockHTTP, map[
 		}
 	}
 
+	i := errors.NewInjector(hclog.Default(), errorRate, http.StatusInternalServerError, "http_error", 0, 0, 0)
+
 	return &Request{
 		name:          "test",
 		message:       "hello world",
@@ -46,13 +49,14 @@ func setupRequest(t *testing.T, uris []string) (*Request, *client.MockHTTP, map[
 		workerCount:   1,
 		defaultClient: c,
 		grpcClients:   grpcClients,
+		errorInjector: i,
 	}, c, grpcClients
 }
 
 func TestRequestCompletesWithNoUpstreams(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
-	h, c, _ := setupRequest(t, nil)
+	h, c, _ := setupRequest(t, nil, 0)
 
 	h.Handle(rr, r)
 	mr := response.Response{}
@@ -62,13 +66,31 @@ func TestRequestCompletesWithNoUpstreams(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "test", mr.Name)
 	assert.Equal(t, "hello world", mr.Body)
+	assert.Equal(t, http.StatusOK, mr.Code)
+	assert.Len(t, mr.UpstreamCalls, 0)
+}
+
+func TestRequestCompletesWithInjectedError(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
+	rr := httptest.NewRecorder()
+	h, c, _ := setupRequest(t, nil, 1)
+
+	h.Handle(rr, r)
+	mr := response.Response{}
+	mr.FromJSON([]byte(rr.Body.String()))
+
+	c.AssertNotCalled(t, "Do", mock.Anything)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Equal(t, "test", mr.Name)
+	assert.Equal(t, http.StatusInternalServerError, mr.Code)
+	assert.Equal(t, errors.ErrorInjection.Error(), mr.Error)
 	assert.Len(t, mr.UpstreamCalls, 0)
 }
 
 func TestRequestCompletesWithHTTPUpstreams(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
-	h, c, _ := setupRequest(t, []string{"http://test.com"})
+	h, c, _ := setupRequest(t, []string{"http://test.com"}, 0)
 
 	// setup the upstream response
 	c.On("Do", mock.Anything, mock.Anything).Return(http.StatusOK, []byte(`{"name": "upstream", "body": "OK"}`), nil)
@@ -92,7 +114,7 @@ func TestRequestCompletesWithHTTPUpstreams(t *testing.T) {
 func TestReturnsErrorWithHTTPUpstreamConnectionError(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
-	h, c, _ := setupRequest(t, []string{"http://something.com"})
+	h, c, _ := setupRequest(t, []string{"http://something.com"}, 0)
 
 	// setup the error
 	c.On("Do", mock.Anything, mock.Anything).Return(-1, nil, fmt.Errorf("Boom"))
@@ -114,7 +136,7 @@ func TestReturnsErrorWithHTTPUpstreamConnectionError(t *testing.T) {
 func TestReturnsErrorWithHTTPUpstreamHandleError(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
-	h, c, _ := setupRequest(t, []string{"http://something.com"})
+	h, c, _ := setupRequest(t, []string{"http://something.com"}, 0)
 
 	// setup the error
 	c.On("Do", mock.Anything, mock.Anything).Return(http.StatusInternalServerError, []byte(`{"name": "upstream", "code": 503, "error": "boom"}`), fmt.Errorf("Error processing upstream"))
@@ -134,7 +156,7 @@ func TestReturnsErrorWithHTTPUpstreamHandleError(t *testing.T) {
 func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
-	h, _, gc := setupRequest(t, []string{"grpc://test.com"})
+	h, _, gc := setupRequest(t, []string{"grpc://test.com"}, 0)
 
 	// setup the upstream response
 	gcMock := gc["grpc://test.com"].(*client.MockGRPC)
@@ -156,7 +178,7 @@ func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
-	h, _, gc := setupRequest(t, []string{"grpc://something.com"})
+	h, _, gc := setupRequest(t, []string{"grpc://something.com"}, 0)
 
 	// setup the upstream response
 	gcMock := gc["grpc://something.com"].(*client.MockGRPC)

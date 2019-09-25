@@ -10,14 +10,17 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-func setupFakeServer(t *testing.T, uris []string) (*FakeServer, *client.MockHTTP, map[string]client.GRPC) {
+func setupFakeServer(t *testing.T, uris []string, errorRate float64) (*FakeServer, *client.MockHTTP, map[string]client.GRPC) {
 	l := hclog.Default()
 	c := &client.MockHTTP{}
 	d := timing.NewRequestDuration(
@@ -35,11 +38,14 @@ func setupFakeServer(t *testing.T, uris []string) (*FakeServer, *client.MockHTTP
 		}
 	}
 
-	return NewFakeServer("test", "hello world", d, uris, 1, c, grpcClients, l), c, grpcClients
+	// setup the error injector
+	i := errors.NewInjector(l, errorRate, int(codes.Internal), "http_error", 0, 0, 0)
+
+	return NewFakeServer("test", "hello world", d, uris, 1, c, grpcClients, l, i), c, grpcClients
 }
 
 func TestGRPCServiceHandlesRequestWithNoUpstream(t *testing.T) {
-	fs, _, _ := setupFakeServer(t, nil)
+	fs, _, _ := setupFakeServer(t, nil, 0)
 
 	resp, err := fs.Handle(context.Background(), nil)
 	mr := response.Response{}
@@ -51,9 +57,26 @@ func TestGRPCServiceHandlesRequestWithNoUpstream(t *testing.T) {
 	assert.Len(t, mr.UpstreamCalls, 0)
 }
 
+func TestGRPCServiceHandlesErrorInjection(t *testing.T) {
+	fs, _, _ := setupFakeServer(t, nil, 1)
+
+	resp, err := fs.Handle(context.Background(), nil)
+	status, ok := status.FromError(err)
+
+	mr := response.Response{}
+	mr.FromJSON([]byte(resp.Message))
+
+	assert.Error(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "test", mr.Name)
+	assert.Equal(t, "hello world", mr.Body)
+	assert.Equal(t, codes.Internal, status.Code())
+	assert.Len(t, mr.UpstreamCalls, 0)
+}
+
 func TestGRPCServiceHandlesRequestWithHTTPUpstream(t *testing.T) {
 	uris := []string{"http://test.com"}
-	fs, mc, _ := setupFakeServer(t, uris)
+	fs, mc, _ := setupFakeServer(t, uris, 0)
 	mc.On("Do", mock.Anything, mock.Anything).Return(http.StatusInternalServerError, []byte(`{"name": "upstream", "error": "boom", "code": 500}`), fmt.Errorf("It went bang"))
 
 	resp, err := fs.Handle(context.Background(), nil)
@@ -73,7 +96,7 @@ func TestGRPCServiceHandlesRequestWithHTTPUpstream(t *testing.T) {
 
 func TestGRPCServiceHandlesRequestWithHTTPUpstreamError(t *testing.T) {
 	uris := []string{"http://test.com"}
-	fs, mc, _ := setupFakeServer(t, uris)
+	fs, mc, _ := setupFakeServer(t, uris, 0)
 	mc.On("Do", mock.Anything, mock.Anything).Return(http.StatusOK, []byte(`{"name": "upstream", "body": "OK"}`), nil)
 
 	resp, err := fs.Handle(context.Background(), nil)
@@ -92,7 +115,7 @@ func TestGRPCServiceHandlesRequestWithHTTPUpstreamError(t *testing.T) {
 
 func TestGRPCServiceHandlesRequestWithGRPCUpstream(t *testing.T) {
 	uris := []string{"grpc://test.com"}
-	fs, _, gc := setupFakeServer(t, uris)
+	fs, _, gc := setupFakeServer(t, uris, 0)
 
 	gcMock := gc["grpc://test.com"].(*client.MockGRPC)
 	gcMock.On("Handle", mock.Anything, mock.Anything).Return(&api.Response{Message: `{"name": "upstream", "body": "OK"}`}, nil)

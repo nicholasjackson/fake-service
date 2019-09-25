@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	cloud.google.com/go/logging v1.0.0
+	github.com/dnephin/filewatcher v0.3.2 // indirect
 	github.com/golang/protobuf v1.3.2
 	github.com/hashicorp/go-hclog v0.9.2
 	github.com/kr/pretty v0.1.0
@@ -17,4 +18,5 @@ require (
 	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/grpc v1.22.1
+	gotest.tools/gotestsum v0.3.5 // indirect
 )

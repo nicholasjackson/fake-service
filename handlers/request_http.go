@@ -7,9 +7,9 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
-	"github.com/nicholasjackson/fake-service/tracing"
 	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -34,7 +34,7 @@ type Request struct {
 	workerCount   int
 	defaultClient client.HTTP
 	grpcClients   map[string]client.GRPC
-	tracingClient tracing.Client
+	errorInjector *errors.Injector
 }
 
 // NewRequest creates a new request handler
@@ -46,7 +46,7 @@ func NewRequest(
 	workerCount int,
 	defaultClient client.HTTP,
 	grpcClients map[string]client.GRPC,
-	tracingClient tracing.Client,
+	errorInjector *errors.Injector,
 ) *Request {
 
 	return &Request{
@@ -58,7 +58,7 @@ func NewRequest(
 		workerCount:   workerCount,
 		defaultClient: defaultClient,
 		grpcClients:   grpcClients,
-		tracingClient: tracingClient,
+		errorInjector: errorInjector,
 	}
 }
 
@@ -92,6 +92,17 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	resp.Name = rq.name
 	resp.Body = rq.message
 	resp.Type = "HTTP"
+
+	// are we injecting errors, if so return the error
+	if er := rq.errorInjector.Do(); er != nil {
+		resp.Code = er.Code
+		resp.Error = er.Error.Error()
+		serverSpan.LogFields(log.Error(er.Error))
+
+		rw.WriteHeader(er.Code)
+		rw.Write([]byte(resp.ToJSON()))
+		return
+	}
 
 	// if we need to create upstream requests create a worker pool
 	var upstreamError error
@@ -136,6 +147,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 			time.Sleep(rd)
 		}
 		sp.LogFields(log.String("randomized_duration", d.String()))
+		resp.Code = http.StatusOK
 	} else {
 		rq.logger.Error("Error processing upstreams", "error", upstreamError)
 		rw.WriteHeader(http.StatusInternalServerError)

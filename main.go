@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/env"
 	"github.com/nicholasjackson/fake-service/client"
+	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
 	"github.com/nicholasjackson/fake-service/handlers"
 	"github.com/nicholasjackson/fake-service/timing"
@@ -41,13 +42,14 @@ var timingVariance = env.Int("TIMING_VARIANCE", false, 0, "Percentage variance f
 
 // performance testing flags
 // these flags allow the user to inject faults into the service for testing purposes
-var errorRate = env.Float64("ERROR_RATE", false, 0.0, "Percentage of request where handler will report an error")
+var errorRate = env.Float64("ERROR_RATE", false, 0.0, "Decimal percentage of request where handler will report an error. e.g. 0.1 = 10% of all requests will result in an error")
 var errorType = env.String("ERROR_TYPE", false, "http_error", "Type of error [http_error, delay]")
 var errorCode = env.Int("ERROR_CODE", false, http.StatusInternalServerError, "Error code to return on error")
 var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay [1s,100ms]")
 
 // rate limit request to the service
-var rateLimit = flag.Float64("RATE_LIMIT", 0, "Rate in req/second after which service will return 503")
+var rateLimitRPS = env.Float64("RATE_LIMIT", false, 0.0, "Rate in req/second after which service will return an error code")
+var rateLimitCode = env.Int("RATE_LIMIT_CODE", false, 503, "Code to return when service call is rate limited")
 
 // metrics
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
@@ -81,6 +83,17 @@ func main() {
 		*timingVariance,
 	)
 
+	// create the error injector
+	errorInjector := errors.NewInjector(
+		logger.Named("error_injector"),
+		*errorRate,
+		*errorCode,
+		*errorType,
+		*errorDelay,
+		*rateLimitRPS,
+		*rateLimitCode,
+	)
+
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest)
 
@@ -100,9 +113,8 @@ func main() {
 	}
 
 	// do we need to setup tracing
-	var tracingClient tracing.Client
 	if *zipkinEndpoint != "" {
-		tracingClient = tracing.NewOpenTracingClient(*zipkinEndpoint, *name, *listenAddress)
+		tracing.NewOpenTracingClient(*zipkinEndpoint, *name, *listenAddress)
 	}
 
 	logger.Info(
@@ -128,7 +140,7 @@ func main() {
 			*upstreamWorkers,
 			defaultClient,
 			grpcClients,
-			tracingClient,
+			errorInjector,
 		)
 
 		hq := handlers.NewHealth(logger)
@@ -156,6 +168,7 @@ func main() {
 			defaultClient,
 			grpcClients,
 			logger,
+			errorInjector,
 		)
 
 		api.RegisterFakeServiceServer(grpcServer, fakeServer)
