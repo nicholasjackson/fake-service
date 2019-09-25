@@ -7,39 +7,45 @@ Fake Service for testing upstream service communications and testing service mes
 Configuration values are set using environment variables, for info please see the following list:
 
 ```
+Configuration values are set using environment variables, for info please see the following list:
+
 Environment variables:
   UPSTREAM_URIS  default: no default
-       Comma separated URIs of the upstream services to call, http://somethig.com, or for a grpc upstream grpc://something.com
+       Comma separated URIs of the upstream services to call
   UPSTREAM_WORKERS  default: '1'
-       Number of parallel workers for calling upstreams, default is 1 which is sequential operation
+       Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation
+  SERVER_TYPE  default: 'http'
+       Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC
   MESSAGE  default: 'Hello World'
        Message to be returned from service
-  SERVER_TYPE default: 'http'
-       Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC
   NAME  default: 'Service'
        Name of the service
   LISTEN_ADDR  default: '0.0.0.0:9090'
        IP address and port to bind service to
   HTTP_CLIENT_KEEP_ALIVES  default: 'true'
        Enable HTTP connection keep alives for upstream calls
-  HTTP_CLIENT_APPEND_REQUEST default: 'false'
-       When true the path, querystring, and headers sent to the service will be appended to any upstream calls
-  TIMING_50_PERCENTILE  default: '1ms'
+  HTTP_CLIENT_APPEND_REQUEST  default: 'true'
+       When true the path, querystring, and any headers sent to the service will be appended to any upstream calls
+  TIMING_50_PERCENTILE  default: '0s'
        Median duration for a request
-  TIMING_90_PERCENTILE  default: '1ms'
+  TIMING_90_PERCENTILE  default: '0s'
        90 percentile duration for a request, if no value is set, will use value from TIMING_50_PERCENTILE
-  TIMING_99_PERCENTILE  default: '1ms'
+  TIMING_99_PERCENTILE  default: '0s'
        99 percentile duration for a request, if no value is set, will use value from TIMING_90_PERCENTILE
   TIMING_VARIANCE  default: '0'
        Percentage variance for each request, every request will vary by a random amount to a maximum of a percentage of the total request time
   ERROR_RATE  default: '0'
-       Percentage of request where handler will report an error
+       Decimal percentage of request where handler will report an error. e.g. 0.1 = 10% of all requests will result in an error
   ERROR_TYPE  default: 'http_error'
        Type of error [http_error, delay]
   ERROR_CODE  default: '500'
        Error code to return on error
   ERROR_DELAY  default: '0s'
        Error delay [1s,100ms]
+  RATE_LIMIT  default: '0'
+       Rate in req/second after which service will return an error code
+  RATE_LIMIT_CODE  default: '503'
+       Code to return when service call is rate limited
   TRACING_ZIPKIN  default: no default
        Location of Zipkin tracing collector
 ```
@@ -129,3 +135,109 @@ Then curl the web endpoint:
 ```
 
 Tracing data can be seen using Jaeger which is running at `http://localhost:16686`.
+
+## Error Injection
+Fake Service has the capability to simulate service errors, this feature can be used to test reliability patterns, particularly those which are externailized in a service mesh. The errors which Fake Service can simulate are:
+
+* Service Errors - gRPC and HTTP responses
+* Service Delays - Simulate sporadic delays to service execution
+* Rate Limiting - Simulate rate limiting of a service
+
+Error Injection can be configured using the following environment variables:
+
+```
+  ERROR_RATE  default: '0'
+       Decimal percentage of request where handler will report an error. e.g. 0.1 = 10% of all requests will result in an error
+  ERROR_TYPE  default: 'http_error'
+       Type of error [http_error, delay]
+  ERROR_CODE  default: '500'
+       Error code to return on error
+  ERROR_DELAY  default: '0s'
+       Error delay [1s,100ms]
+  RATE_LIMIT  default: '0'
+       Rate in req/second after which service will return an error code
+  RATE_LIMIT_CODE  default: '503'
+       Code to return when service call is rate limited
+```
+
+All features for Error Injection are available for HTTP and gRPC services.
+
+### Service Errors
+To simulate a HTTP service which returns an Internal Server Error (Status Code 500) error 20% of the time, the following command can be used:
+
+```
+$ ERROR_RATE=0.2 ERROR_TYPE=http_error ERROR_CODE=500 fake-service
+```
+
+When called Fake Service will return an error 500 for every 2/10 requests:
+
+```
+➜ curl -i localhost:9090
+HTTP/1.1 500 Internal Server Error
+Date: Wed, 25 Sep 2019 09:36:45 GMT
+Content-Length: 129
+Content-Type: text/plain; charset=utf-8
+
+{
+  "name": "web",
+  "type": "HTTP",
+  "body": "Hello World",
+  "code": 500,
+  "error": "Service error automatically injected"
+}
+```
+
+To simulate a gRPC service with the same error response, the following example can be used:
+
+```
+$ ERROR_RATE=0.2 ERROR_TYPE=http_error ERROR_CODE=13 SERVER_TYPE=grpc fake-service
+```
+
+### Service Delays
+Service Delays give more granular control over the time take for a service to respond and can be used in combination with Service Timing. To simulate a execution delay which would result in a client timeout 20% of the time, the following command can be used:
+
+```
+$ ERROR_RATE=0.2 ERROR_TYPE=delay ERROR_DELAY=2m  fake-service
+
+➜ curl -i --max-time 0.5 localhost:9090
+curl: (28) Operation timed out after 505 milliseconds with 0 bytes received
+```
+
+### Rate Limiting
+It is possible to configure Fake Service to rate limit calls, rate limiting is applied before Service Errors or Service Delays and can be used in combination with these features. To simulate a service which only allows a rate of 1 request per second, the following example can be used:
+
+```
+$ RATE_LIMIT=1 RATE_LIMIT_CODE=429 fake-service
+```
+
+When the service is called quickly in succession the second calls with a rate limit error message:
+
+```
+➜ curl -i --max-time 0.5 localhost:9090
+HTTP/1.1 200 OK
+Date: Wed, 25 Sep 2019 09:59:01 GMT
+Content-Length: 109
+Content-Type: text/plain; charset=utf-8
+
+{
+  "name": "Service",
+  "type": "HTTP",
+  "duration": "21.512µs",
+  "body": "Hello World",
+  "code": 200
+}
+
+➜ curl -i --max-time 0.5 localhost:9090
+HTTP/1.1 429 Too Many Requests
+Date: Wed, 25 Sep 2019 09:59:02 GMT
+Content-Length: 124
+Content-Type: text/plain; charset=utf-8
+
+{
+  "name": "Service",
+  "type": "HTTP",
+  "body": "Hello World",
+  "code": 429,
+  "error": "Service exceeded rate limit"
+}
+```
