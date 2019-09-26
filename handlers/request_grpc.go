@@ -159,8 +159,10 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		time.Sleep(rd)
 	}
 
-	// add the response body
-	resp.Body = f.message
+	// add the response body if there is no upstream error
+	if upstreamError == nil {
+		resp.Body = f.message
+	}
 
 	return &api.Response{Message: resp.ToJSON()}, nil
 }

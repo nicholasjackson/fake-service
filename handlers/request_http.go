@@ -157,7 +157,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	resp.Duration = et.String()
 
 	// add the response body
-	if !upstreamError {
+	if upstreamError == nil {
 		resp.Body = rq.message
 	}
 
