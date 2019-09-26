@@ -1,4 +1,4 @@
-version=v0.5.2
+version=v0.5.3
 
 protos:
 	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
@@ -34,4 +34,4 @@ test:
 	filewatcher --idle-timeout 24h gotestsum
 
 run_functional: build_docker
-	cd examples/docker-compose && docker-compose up
+	cd examples/docker-compose-datadog && docker-compose up

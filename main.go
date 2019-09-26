@@ -119,7 +119,7 @@ func main() {
 	}
 
 	if *datadogEndpoint != "" {
-		tracing.NewDataDogClient(*datadogEndpoint)
+		tracing.NewDataDogClient(*datadogEndpoint, *name)
 	}
 
 	logger.Info(
