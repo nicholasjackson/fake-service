@@ -157,7 +157,9 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	resp.Duration = et.String()
 
 	// add the response body
-	resp.Body = rq.message
+	if !upstreamError {
+		resp.Body = rq.message
+	}
 
 	rw.Write([]byte(resp.ToJSON()))
 

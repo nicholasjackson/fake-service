@@ -52,7 +52,11 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 	if resp != nil {
 		jsonerr := r.FromJSON(resp)
 		if jsonerr != nil {
-			return nil, jsonerr
+			// we can not process the upstream response
+			// this could be because the proxy is returning an error not the
+			// upstream
+			// in this instance create a blank response with the error
+
 		}
 	}
 
@@ -107,7 +111,10 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 	if resp != nil {
 		jsonerr := r.FromJSON([]byte(resp.Message))
 		if jsonerr != nil {
-			return nil, jsonerr
+			// we can not process the upstream response
+			// this could be because the proxy is returning an error not the
+			// upstream
+			// in this instance create a blank response with the error
 		}
 	}
 
