@@ -53,6 +53,7 @@ var rateLimitCode = env.Int("RATE_LIMIT_CODE", false, 503, "Code to return when 
 
 // metrics
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
+var datadogEndpoint = env.String("TRACING_DATADOG", false, "", "Location of Datadog tracing collector")
 
 var logger hclog.Logger
 
@@ -115,6 +116,10 @@ func main() {
 	// do we need to setup tracing
 	if *zipkinEndpoint != "" {
 		tracing.NewOpenTracingClient(*zipkinEndpoint, *name, *listenAddress)
+	}
+
+	if *datadogEndpoint != "" {
+		tracing.NewDataDogClient(*datadogEndpoint)
 	}
 
 	logger.Info(

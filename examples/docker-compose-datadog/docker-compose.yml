@@ -1,0 +1,99 @@
+---
+
+version: "3.3"
+services:
+
+  web:
+    image: nicholasjackson/fake-service:v0.5.1
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      UPSTREAM_URIS: "grpc://api:9090"
+      MESSAGE: "Hello World"
+      NAME: "web"
+      SERVER_TYPE: "http"
+      TIMING_50_PERCENTILE: 30ms
+      TIMING_90_PERCENTILE: 60ms
+      TIMING_99_PERCENTILE: 90ms
+      TIMING_VARIANCE: 10
+      TRACING_DATADOG: "datadog-agent:8126"
+    ports:
+    - "9090:9090"
+
+  api:
+    image: nicholasjackson/fake-service:v0.5.1
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      UPSTREAM_URIS: "http://payments:9090, http://cache:9090"
+      UPSTREAM_WORKERS: 2
+      MESSAGE: "API response"
+      NAME: "api"
+      SERVER_TYPE: "grpc"
+      TIMING_50_PERCENTILE: 20ms
+      TIMING_90_PERCENTILE: 30ms
+      TIMING_99_PERCENTILE: 40ms
+      TIMING_VARIANCE: 10
+      TRACING_DATADOG: "datadog-agent:8126"
+
+  cache:
+    image: nicholasjackson/fake-service:v0.5.1
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      MESSAGE: "Cache response"
+      NAME: "cache"
+      SERVER_TYPE: "http"
+      TIMING_50_PERCENTILE: 1ms
+      TIMING_90_PERCENTILE: 2ms
+      TIMING_99_PERCENTILE: 3ms
+      TIMING_VARIANCE: 10
+      TRACING_DATADOG: "datadog-agent:8126"
+
+  payments:
+    image: nicholasjackson/fake-service:v0.5.1
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      UPSTREAM_URIS: "http://currency:9090/12434/jackson?auth=true"
+      MESSAGE: "Payments response"
+      NAME: "payments"
+      SERVER_TYPE: "http"
+      TRACING_DATADOG: "datadog-agent:8126"
+      HTTP_CLIENT_APPEND_REQUEST: "true"
+
+  currency:
+    image: nicholasjackson/fake-service:v0.5.1
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      MESSAGE: "Currency response"
+      NAME: "currency"
+      SERVER_TYPE: "http"
+      ERROR_RATE: 0.5
+      ERROR_CODE: 500
+      ERROR_TYPE: "http_error"
+      TRACING_DATADOG: "datadog-agent:8126"
+
+  datadog-agent:
+    image: datadog/agent:latest
+    volumes:
+    # For the Agent in general
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /proc/:/host/proc/:ro
+    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    # For Live Processes in particular
+    - /etc/passwd:/etc/passwd:ro
+    # For Logs in particular
+    # - /opt/datadog-agent/run:/opt/datadog-agent/run:rw
+    environment:
+      # The API key
+      DD_API_KEY: "${DD_API_KEY}"
+      # Allow DogStatsD to receive metrics from other containers
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+      # Enable APM and allow other containers to report
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      # Enable the Process Agent
+      DD_PROCESS_AGENT_ENABLED: "true"
+      # Enable Logs
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_AC_EXCLUDE: "name:datadog-agent"  # exclude Agent logs
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "datadog-agent", "service": "datadog-agent"}]'
