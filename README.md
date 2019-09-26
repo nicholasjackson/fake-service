@@ -48,6 +48,8 @@ Environment variables:
        Code to return when service call is rate limited
   TRACING_ZIPKIN  default: no default
        Location of Zipkin tracing collector
+  TRACING_DATADOG  default: no default
+       Location of Datadog tracing collector
 ```
 
 ## Docker Container
