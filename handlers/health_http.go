@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/hashicorp/go-hclog"
+	"github.com/nicholasjackson/fake-service/logging"
 )
 
 // Health defines the health handler for the service
 type Health struct {
-	logger hclog.Logger
+	logger *logging.Logger
 }
 
 // NewHealth creates a new health handler
-func NewHealth(logger hclog.Logger) *Health {
+func NewHealth(logger *logging.Logger) *Health {
 	return &Health{
 		logger,
 	}
@@ -21,7 +21,10 @@ func NewHealth(logger hclog.Logger) *Health {
 
 // Handle the request
 func (h *Health) Handle(rw http.ResponseWriter, r *http.Request) {
-	h.logger.Info("Handling health request")
+	hq := h.logger.CallHealthHTTP()
+	defer hq.Finished()
+
+	hq.SetMetadata("response", "200")
 
 	fmt.Fprint(rw, "OK")
 }

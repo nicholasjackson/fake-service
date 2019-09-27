@@ -5,15 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/errors"
+	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/worker"
-	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
 )
 
 // done is a message sent when an upstream worker has completed
@@ -28,65 +25,48 @@ type Request struct {
 	name string
 	// message to return to caller
 	message       string
-	logger        hclog.Logger
 	duration      *timing.RequestDuration
 	upstreamURIs  []string
 	workerCount   int
 	defaultClient client.HTTP
 	grpcClients   map[string]client.GRPC
 	errorInjector *errors.Injector
+	log           *logging.Logger
 }
 
 // NewRequest creates a new request handler
 func NewRequest(
 	name, message string,
-	logger hclog.Logger,
 	duration *timing.RequestDuration,
 	upstreamURIs []string,
 	workerCount int,
 	defaultClient client.HTTP,
 	grpcClients map[string]client.GRPC,
 	errorInjector *errors.Injector,
+	log *logging.Logger,
 ) *Request {
 
 	return &Request{
 		name:          name,
 		message:       message,
-		logger:        logger,
 		duration:      duration,
 		upstreamURIs:  upstreamURIs,
 		workerCount:   workerCount,
 		defaultClient: defaultClient,
 		grpcClients:   grpcClients,
 		errorInjector: errorInjector,
+		log:           log,
 	}
 }
 
 // Handle the request and call the upstream servers
 func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
-	rq.logger.Info("Handling request", "request", formatRequest(r))
-
 	// start timing the service this is used later for the total request time
 	ts := time.Now()
 
-	var serverSpan opentracing.Span
-	wireContext, err := opentracing.GlobalTracer().Extract(
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(r.Header),
-	)
-	if err != nil {
-		// Optionally record something about err here
-		rq.logger.Error("Error obtaining context, creating new span", "error", err)
-	}
-
-	// Create the span referring to the RPC client if available.
-	// If wireContext == nil, a root span will be created.
-	serverSpan = opentracing.StartSpan(
-		"handle_request",
-		ext.RPCServerOption(wireContext))
-	serverSpan.LogFields(log.String("service.type", "http"))
-
-	defer serverSpan.Finish()
+	// log start request
+	hq := rq.log.HandleHTTPRequest(r)
+	defer hq.Finished()
 
 	resp := &response.Response{}
 	resp.Name = rq.name
@@ -96,7 +76,10 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	if er := rq.errorInjector.Do(); er != nil {
 		resp.Code = er.Code
 		resp.Error = er.Error.Error()
-		serverSpan.LogFields(log.Error(er.Error))
+
+		// log the error response
+		hq.SetError(er.Error)
+		hq.SetMetadata("response", string(er.Code))
 
 		rw.WriteHeader(er.Code)
 		rw.Write([]byte(resp.ToJSON()))
@@ -106,14 +89,12 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	// if we need to create upstream requests create a worker pool
 	var upstreamError error
 	if len(rq.upstreamURIs) > 0 {
-		wp := worker.New(rq.workerCount, rq.logger, func(uri string) (*response.Response, error) {
+		wp := worker.New(rq.workerCount, func(uri string) (*response.Response, error) {
 			if strings.HasPrefix(uri, "http://") {
-				rq.logger.Info("Calling upstream HTTP service", "uri", uri)
-				return workerHTTP(serverSpan.Context(), uri, rq.defaultClient, r)
+				return workerHTTP(hq.Span.Context(), uri, rq.defaultClient, r, rq.log)
 			}
 
-			rq.logger.Info("Calling upstream GRPC service", "uri", uri)
-			return workerGRPC(serverSpan.Context(), uri, rq.grpcClients)
+			return workerGRPC(hq.Span.Context(), uri, rq.grpcClients, rq.log)
 		})
 
 		err := wp.Do(rq.upstreamURIs)
@@ -127,30 +108,31 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	d := rq.duration.Calculate()
 	// service time is equal to the randomised time - the current time take
+	d := rq.duration.Calculate()
 	et := time.Now().Sub(ts)
 	rd := d - et
 
-	// randomize the time the request takes if no error
-	if upstreamError == nil {
-		rq.logger.Info("Upstreams processed correctly")
-		sp := serverSpan.Tracer().StartSpan(
-			"service_delay",
-			opentracing.ChildOf(serverSpan.Context()),
-		)
-		defer sp.Finish()
-
-		if rd > 0 {
-			rq.logger.Info("Sleeping for", "duration", rd.String())
-			time.Sleep(rd)
-		}
-		sp.LogFields(log.String("randomized_duration", d.String()))
-		resp.Code = http.StatusOK
-	} else {
-		rq.logger.Error("Error processing upstreams", "error", upstreamError)
+	if upstreamError != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		resp.Code = http.StatusInternalServerError
+
+		// log error
+		hq.SetMetadata("response", string(http.StatusInternalServerError))
+		hq.SetError(upstreamError)
+	} else {
+		// randomize the time the request takes if no error
+		lp := rq.log.SleepService(hq.Span, rd)
+
+		if rd > 0 {
+			time.Sleep(rd)
+		}
+
+		lp.Finished()
+		resp.Code = http.StatusOK
+
+		// log response code
+		hq.SetMetadata("response", string(http.StatusOK))
 	}
 
 	et = time.Now().Sub(ts)
@@ -162,6 +144,4 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	rw.Write([]byte(resp.ToJSON()))
-
-	rq.logger.Info("Service Duration", "elapsed_time", et.String(), "calculated_duration", d.String(), "sleep_time", rd.String())
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
+	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,7 @@ import (
 )
 
 func setupFakeServer(t *testing.T, uris []string, errorRate float64) (*FakeServer, *client.MockHTTP, map[string]client.GRPC) {
-	l := hclog.Default()
+	l := logging.NewLogger(&logging.NullMetrics{}, hclog.Default())
 	c := &client.MockHTTP{}
 	d := timing.NewRequestDuration(
 		1*time.Nanosecond,
@@ -39,9 +40,9 @@ func setupFakeServer(t *testing.T, uris []string, errorRate float64) (*FakeServe
 	}
 
 	// setup the error injector
-	i := errors.NewInjector(l, errorRate, int(codes.Internal), "http_error", 0, 0, 0)
+	i := errors.NewInjector(l.Log(), errorRate, int(codes.Internal), "http_error", 0, 0, 0)
 
-	return NewFakeServer("test", "hello world", d, uris, 1, c, grpcClients, l, i), c, grpcClients
+	return NewFakeServer("test", "hello world", d, uris, 1, c, grpcClients, i, l), c, grpcClients
 }
 
 func TestGRPCServiceHandlesRequestWithNoUpstream(t *testing.T) {

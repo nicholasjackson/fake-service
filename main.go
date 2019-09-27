@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
 	"github.com/nicholasjackson/fake-service/handlers"
+	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/tracing"
 	"google.golang.org/grpc"
@@ -51,9 +51,10 @@ var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay 
 var rateLimitRPS = env.Float64("RATE_LIMIT", false, 0.0, "Rate in req/second after which service will return an error code")
 var rateLimitCode = env.Int("RATE_LIMIT_CODE", false, 503, "Code to return when service call is rate limited")
 
-// metrics
+// metrics / tracing
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
-var datadogEndpoint = env.String("TRACING_DATADOG", false, "", "Location of Datadog tracing collector")
+var datadogTracingEndpoint = env.String("TRACING_DATADOG", false, "", "Location of Datadog tracing collector")
+var datadogMetricsEndpoint = env.String("METRICS_DATADOG", false, "", "Location of Datadog metrics collector")
 
 var logger hclog.Logger
 
@@ -62,9 +63,6 @@ var help = flag.Bool("help", false, "--help to show help")
 var version = "dev"
 
 func main() {
-
-	logger = hclog.Default()
-
 	env.Parse()
 	flag.Parse()
 
@@ -95,6 +93,24 @@ func main() {
 		*rateLimitCode,
 	)
 
+	// do we need to setup tracing
+	if *zipkinEndpoint != "" {
+		tracing.NewOpenTracingClient(*zipkinEndpoint, *name, *listenAddress)
+	}
+
+	if *datadogTracingEndpoint != "" {
+		tracing.NewDataDogClient(*datadogTracingEndpoint, *name)
+	}
+
+	// do we need to setup metrics
+	var metrics logging.Metrics = &logging.NullMetrics{}
+
+	if *datadogMetricsEndpoint != "" {
+		metrics = logging.NewStatsDMetrics(*name, "production", *datadogMetricsEndpoint)
+	}
+
+	logger := logging.NewLogger(metrics, hclog.Default())
+
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest)
 
@@ -106,23 +122,14 @@ func main() {
 
 		c, err := client.NewGRPC(u2)
 		if err != nil {
-			logger.Error("Error creating GRPC client", "error", err)
+			logger.Log().Error("Error creating GRPC client", "error", err)
 			os.Exit(1)
 		}
 
 		grpcClients[u] = c
 	}
 
-	// do we need to setup tracing
-	if *zipkinEndpoint != "" {
-		tracing.NewOpenTracingClient(*zipkinEndpoint, *name, *listenAddress)
-	}
-
-	if *datadogEndpoint != "" {
-		tracing.NewDataDogClient(*datadogEndpoint, *name)
-	}
-
-	logger.Info(
+	logger.Log().Info(
 		"Starting service",
 		"name", *name,
 		"message", *message,
@@ -139,28 +146,32 @@ func main() {
 		rq := handlers.NewRequest(
 			*name,
 			*message,
-			logger,
 			rd,
 			tidyURIs(*upstreamURIs),
 			*upstreamWorkers,
 			defaultClient,
 			grpcClients,
 			errorInjector,
+			logger,
 		)
 
 		hq := handlers.NewHealth(logger)
 
 		http.HandleFunc("/", rq.Handle)
 		http.HandleFunc("/health", hq.Handle)
-		logger.Error(
-			"Error starting service", "error",
-			http.ListenAndServe(*listenAddress, nil))
+
+		err := http.ListenAndServe(*listenAddress, nil)
+
+		if err != nil {
+			logger.Log().Error("Error starting service", "address", *listenAddress, "error", err)
+		}
 	}
 
 	if *serviceType == "grpc" {
 		lis, err := net.Listen("tcp", *listenAddress)
 		if err != nil {
-			log.Fatalf("failed to listen: %v", err)
+			logger.Log().Error("failed to create lister", "address", *listenAddress, "error", err)
+			os.Exit(1)
 		}
 
 		grpcServer := grpc.NewServer()
@@ -172,8 +183,8 @@ func main() {
 			*upstreamWorkers,
 			defaultClient,
 			grpcClients,
-			logger,
 			errorInjector,
+			logger,
 		)
 
 		api.RegisterFakeServiceServer(grpcServer, fakeServer)

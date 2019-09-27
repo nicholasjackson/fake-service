@@ -1,51 +1,29 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/grpc/api"
+	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/worker"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
-func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request) (*response.Response, error) {
+func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request, l *logging.Logger) (*response.Response, error) {
 	httpReq, _ := http.NewRequest("GET", uri, nil)
 
-	clientSpan := opentracing.StartSpan(
-		"call_upstream",
-		opentracing.ChildOf(ctx),
-	)
-
-	ext.SpanKindRPCClient.Set(clientSpan)
-	ext.HTTPUrl.Set(clientSpan, uri)
-	ext.HTTPMethod.Set(clientSpan, "GET")
-	clientSpan.LogFields(log.String("upstream.type", "http"))
-
-	// Transmit the span's TraceContext as HTTP headers on our
-	// outbound request.
-	opentracing.GlobalTracer().Inject(
-		clientSpan.Context(),
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(httpReq.Header))
-
-	defer clientSpan.Finish()
+	hr := l.CallHTTPUpstream(pr, httpReq, ctx)
+	defer hr.Finished()
 
 	code, resp, err := defaultClient.Do(httpReq, pr)
 
-	clientSpan.SetTag("ResponseCode", code)
-
-	if err != nil {
-		clientSpan.LogFields(log.Error(err))
-	}
+	hr.SetMetadata("response", string(code))
+	hr.SetError(err)
 
 	r := &response.Response{}
 
@@ -71,42 +49,23 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 	return r, err
 }
 
-func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC) (*response.Response, error) {
+func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC, l *logging.Logger) (*response.Response, error) {
+	hr, outCtx := l.CallGRCPUpstream(uri, ctx)
+	defer hr.Finished()
+
 	c := grpcClients[uri]
-
-	clientSpan := opentracing.StartSpan(
-		"call_upstream",
-		opentracing.ChildOf(ctx),
-	)
-	ext.SpanKindRPCClient.Set(clientSpan)
-
-	// add the upstream type
-	clientSpan.LogFields(log.String("upstream.type", "grpc"))
-
-	req := &http.Request{Header: http.Header{}}
-	opentracing.GlobalTracer().Inject(
-		clientSpan.Context(),
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(req.Header))
-
-	// create the grpc metadata and inject the client span
-	md := httpRequestToGrpcMetadata(req)
-
-	outCtx := metadata.NewOutgoingContext(context.Background(), md)
-
 	resp, err := c.Handle(outCtx, &api.Nil{})
 
 	r := &response.Response{}
 	if err != nil {
 		r.Error = err.Error()
-		clientSpan.LogFields(log.Error(err))
+		hr.SetError(err) // set the error for logging
+
 		if s, ok := status.FromError(err); ok {
-			clientSpan.SetTag("ResponseCode", s.Code())
 			r.Code = int(s.Code())
+			hr.SetMetadata("ResponseCode", string(s.Code())) // set the response code for logging
 		}
 	}
-
-	clientSpan.Finish()
 
 	if resp != nil {
 		jsonerr := r.FromJSON([]byte(resp.Message))
@@ -145,54 +104,4 @@ func processResponses(responses []worker.Done) []byte {
 	}
 
 	return []byte(strings.Join(respLines, "\n"))
-}
-
-// formatRequest generates ascii representation of a request
-func formatRequest(r *http.Request) string {
-	// Create return string
-	var request []string
-	// Add the request string
-	url := fmt.Sprintf("%v %v %v", r.Method, r.URL, r.Proto)
-	request = append(request, url)
-	// Add the host
-	request = append(request, fmt.Sprintf("Host: %v", r.Host))
-	// Loop through headers
-	for name, headers := range r.Header {
-		name = strings.ToLower(name)
-		for _, h := range headers {
-			request = append(request, fmt.Sprintf("%v: %v", name, h))
-		}
-	}
-
-	// If this is a POST, add post data
-	if r.Method == "POST" {
-		r.ParseForm()
-		request = append(request, "\n")
-		request = append(request, r.Form.Encode())
-	}
-	// Return the request as a string
-	return strings.Join(request, "\n")
-}
-
-// the following two functions are a hack to get round that
-// opentracing zipkin can not deal with grpc metadata for
-// Inject and extract
-func grpcMetaDataToHTTPRequest(md metadata.MD) *http.Request {
-	h := http.Header{}
-	for k, v := range md {
-		for _, vv := range v {
-			h.Add(k, vv)
-		}
-	}
-	return &http.Request{Header: h}
-}
-
-func httpRequestToGrpcMetadata(r *http.Request) metadata.MD {
-	md := metadata.MD{}
-
-	for k, v := range r.Header {
-		md.Set(k, v...)
-	}
-
-	return md
 }

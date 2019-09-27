@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/stretchr/testify/assert"
 )
 
 func setupHealth(t *testing.T) *Health {
 	return &Health{
-		hclog.Default(),
+		logging.NewLogger(&logging.NullMetrics{}, hclog.Default()),
 	}
 }
 

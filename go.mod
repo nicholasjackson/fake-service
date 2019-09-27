@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	cloud.google.com/go/logging v1.0.0
-	github.com/DataDog/datadog-go v2.2.0+incompatible // indirect
+	github.com/DataDog/datadog-go v2.2.0+incompatible
 	github.com/dnephin/filewatcher v0.3.2 // indirect
 	github.com/golang/protobuf v1.3.2
 	github.com/hashicorp/go-hclog v0.9.2

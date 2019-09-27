@@ -3,7 +3,6 @@ package worker
 import (
 	"sync"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/fake-service/response"
 )
 
@@ -24,12 +23,11 @@ type UpstreamWorker struct {
 	doneChan    chan struct{}
 	workFunc    WorkFunc
 	waitGroup   *sync.WaitGroup
-	logger      hclog.Logger
 	responses   []Done
 }
 
 // New UpstreamWorker
-func New(workerCount int, logger hclog.Logger, f WorkFunc) *UpstreamWorker {
+func New(workerCount int, f WorkFunc) *UpstreamWorker {
 	return &UpstreamWorker{
 		workerCount: workerCount,
 		workChan:    make(chan string),
@@ -37,16 +35,13 @@ func New(workerCount int, logger hclog.Logger, f WorkFunc) *UpstreamWorker {
 		doneChan:    make(chan struct{}),
 		workFunc:    f,
 		waitGroup:   &sync.WaitGroup{},
-		logger:      logger,
 		responses:   []Done{},
 	}
 }
 
 // Do runs the worker with the given uris
 func (u *UpstreamWorker) Do(uris []string) error {
-
 	// start the workers
-	u.logger.Debug("Starting workers", "count", u.workerCount)
 	for n := 0; n < u.workerCount; n++ {
 		go u.worker()
 	}
@@ -87,20 +82,14 @@ func (u *UpstreamWorker) monitorStatus() {
 func (u *UpstreamWorker) worker() {
 	for {
 		uri := <-u.workChan
-		u.logger.Debug("Starting Work", "uri", uri)
-
 		resp, err := u.workFunc(uri)
 
 		u.responses = append(u.responses, Done{uri, resp})
-		u.logger.Info("Received upstream response", "response", resp)
 
 		if err != nil {
-			u.logger.Error("Error processing upstream request", "uri", uri, "error", err)
 			u.errChan <- err
 			break
 		}
 		u.waitGroup.Done()
-
-		u.logger.Debug("Finished Work", "uri", uri)
 	}
 }

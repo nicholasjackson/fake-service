@@ -13,6 +13,7 @@ import (
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
+	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/stretchr/testify/assert"
@@ -22,6 +23,7 @@ import (
 )
 
 func setupRequest(t *testing.T, uris []string, errorRate float64) (*Request, *client.MockHTTP, map[string]client.GRPC) {
+	l := logging.NewLogger(&logging.NullMetrics{}, hclog.Default())
 	c := &client.MockHTTP{}
 	d := timing.NewRequestDuration(
 		1*time.Nanosecond,
@@ -43,13 +45,13 @@ func setupRequest(t *testing.T, uris []string, errorRate float64) (*Request, *cl
 	return &Request{
 		name:          "test",
 		message:       "hello world",
-		logger:        hclog.Default(),
 		duration:      d,
 		upstreamURIs:  uris,
 		workerCount:   1,
 		defaultClient: c,
 		grpcClients:   grpcClients,
 		errorInjector: i,
+		log:           l,
 	}, c, grpcClients
 }
 
