@@ -4,7 +4,7 @@ version: "3.3"
 services:
 
   web:
-    image: nicholasjackson/fake-service:v0.5.3
+    image: nicholasjackson/fake-service:v0.5.5
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://api:9090"
@@ -16,11 +16,16 @@ services:
       TIMING_99_PERCENTILE: 90ms
       TIMING_VARIANCE: 10
       TRACING_DATADOG: "datadog-agent:8126"
+      METRICS_DATADOG: "datadog-agent:8125"
+      LOG_LEVEL: "debug"
+      LOG_FORMAT: "json"
+    labels:
+      com.datadoghq.ad.logs: '[{"service": "web"}]'
     ports:
     - "9090:9090"
 
   api:
-    image: nicholasjackson/fake-service:v0.5.3
+    image: nicholasjackson/fake-service:v0.5.5
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://payments:9090/12434/jackson?auth=true, http://cache:9090"
@@ -34,9 +39,14 @@ services:
       TIMING_99_PERCENTILE: 40ms
       TIMING_VARIANCE: 10
       TRACING_DATADOG: "datadog-agent:8126"
+      METRICS_DATADOG: "datadog-agent:8125"
+      LOG_LEVEL: "debug"
+      LOG_FORMAT: "json"
+    labels:
+      com.datadoghq.ad.logs: '[{"service": "api"}]'
 
   cache:
-    image: nicholasjackson/fake-service:v0.5.3
+    image: nicholasjackson/fake-service:v0.5.5
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
@@ -47,9 +57,14 @@ services:
       TIMING_99_PERCENTILE: 3ms
       TIMING_VARIANCE: 10
       TRACING_DATADOG: "datadog-agent:8126"
+      METRICS_DATADOG: "datadog-agent:8125"
+      LOG_LEVEL: "debug"
+      LOG_FORMAT: "json"
+    labels:
+      com.datadoghq.ad.logs: '[{"service": "cache"}]'
 
   payments:
-    image: nicholasjackson/fake-service:v0.5.3
+    image: nicholasjackson/fake-service:v0.5.5
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "grpc://currency:9090"
@@ -57,18 +72,28 @@ services:
       NAME: "payments"
       SERVER_TYPE: "http"
       TRACING_DATADOG: "datadog-agent:8126"
+      METRICS_DATADOG: "datadog-agent:8125"
+      LOG_LEVEL: "debug"
+      LOG_FORMAT: "json"
+    labels:
+      com.datadoghq.ad.logs: '[{"service": "payments"}]'
 
   currency:
-    image: nicholasjackson/fake-service:v0.5.3
+    image: nicholasjackson/fake-service:v0.5.5
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
       NAME: "currency"
       SERVER_TYPE: "grpc"
       ERROR_RATE: 0.5
-      ERROR_CODE: 500
+      ERROR_CODE: 14
       ERROR_TYPE: "http_error"
       TRACING_DATADOG: "datadog-agent:8126"
+      METRICS_DATADOG: "datadog-agent:8125"
+      LOG_LEVEL: "debug"
+      LOG_FORMAT: "json"
+    labels:
+      com.datadoghq.ad.logs: '[{"service": "currency"}]'
 
   datadog-agent:
     image: datadog/agent:latest

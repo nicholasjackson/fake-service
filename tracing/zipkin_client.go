@@ -66,3 +66,14 @@ func (otc *OpenTracingClient) StartSpanFromContext(ctx context.Context, operatio
 func (otc *OpenTracingClient) StartSpan(operation string, opts ...opentracing.StartSpanOption) opentracing.Span {
 	return opentracing.StartSpan(operation, opts...)
 }
+
+func GetZipkinSpanDetails(ctx opentracing.SpanContext) *SpanDetails {
+	if s, ok := ctx.(zipkinot.SpanContext); ok {
+		return &SpanDetails{
+			SpanID:  s.ID.String(),
+			TraceID: s.TraceID.String(),
+		}
+	}
+
+	return nil
+}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/nicholasjackson/fake-service/tracing"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -15,14 +16,16 @@ import (
 )
 
 type Logger struct {
-	metrics Metrics
-	log     hclog.Logger
+	metrics        Metrics
+	log            hclog.Logger
+	getSpanDetails tracing.SpanDetailsFunc
 }
 
-func NewLogger(m Metrics, l hclog.Logger) *Logger {
+func NewLogger(m Metrics, l hclog.Logger, sdf tracing.SpanDetailsFunc) *Logger {
 	return &Logger{
-		metrics: m,
-		log:     l,
+		metrics:        m,
+		log:            l,
+		getSpanDetails: sdf,
 	}
 }
 
@@ -59,7 +62,6 @@ func (l *Logger) Log() hclog.Logger {
 
 // HandleHTTPRequest creates the request span and timing metrics for the handler
 func (l *Logger) HandleHTTPRequest(r *http.Request) *LogProcess {
-	l.log.Info("Handle inbound request", "request", formatRequest(r))
 	// create the start time
 	st := time.Now()
 
@@ -83,6 +85,13 @@ func (l *Logger) HandleHTTPRequest(r *http.Request) *LogProcess {
 		ext.RPCServerOption(wireContext))
 	serverSpan.LogFields(log.String("service.type", "http"))
 
+	l.log.Info("Handle inbound request",
+		l.logFieldsWithSpanID(
+			serverSpan.Context(),
+			"request", formatRequest(r),
+		)...,
+	)
+
 	// return an object which can be used to set metadata onto the trace and
 	// complete
 	return &LogProcess{
@@ -93,7 +102,13 @@ func (l *Logger) HandleHTTPRequest(r *http.Request) *LogProcess {
 			// and log
 			if err != nil {
 				serverSpan.LogFields(log.Error(err))
-				l.log.Error("Error handling request", "error", err)
+				l.log.Error(
+					"Error handling request",
+					l.logFieldsWithSpanID(
+						serverSpan.Context(),
+						"error", err,
+					)...,
+				)
 			}
 
 			// add metadata to the trace and stats
@@ -109,7 +124,6 @@ func (l *Logger) HandleHTTPRequest(r *http.Request) *LogProcess {
 }
 
 func (l *Logger) HandleGRCPRequest(ctx context.Context) *LogProcess {
-	l.log.Info("Handling request gRPC request", "context", printContext(ctx))
 	st := time.Now()
 
 	// we need to convert the metadata to a httpRequest to extract the span
@@ -135,6 +149,14 @@ func (l *Logger) HandleGRCPRequest(ctx context.Context) *LogProcess {
 
 	serverSpan.LogFields(log.String("service.type", "grpc"))
 
+	l.log.Info(
+		"Handling request gRPC request",
+		l.logFieldsWithSpanID(
+			serverSpan.Context(),
+			"context", printContext(ctx),
+		)...,
+	)
+
 	return &LogProcess{
 		finished: func(err error, meta map[string]string) {
 			te := time.Now()
@@ -143,7 +165,14 @@ func (l *Logger) HandleGRCPRequest(ctx context.Context) *LogProcess {
 			// and log
 			if err != nil {
 				serverSpan.LogFields(log.Error(err))
-				l.log.Error("Error handling request", "error", err)
+
+				l.log.Error(
+					"Error handling request",
+					l.logFieldsWithSpanID(
+						serverSpan.Context(),
+						"error", err,
+					)...,
+				)
 			}
 
 			// add metadata to the trace and stats
@@ -165,8 +194,15 @@ func (l *Logger) SleepService(parentSpan opentracing.Span, d time.Duration) *Log
 		opentracing.ChildOf(parentSpan.Context()),
 	)
 
-	l.log.Info("Sleeping for", "duration", d.String())
 	sp.LogFields(log.String("randomized_duration", d.String()))
+
+	l.log.Info(
+		"Sleeping for",
+		l.logFieldsWithSpanID(
+			parentSpan.Context(),
+			"duration", d.String(),
+		)...,
+	)
 
 	return &LogProcess{
 		finished: func(err error, meta map[string]string) {
@@ -178,8 +214,6 @@ func (l *Logger) SleepService(parentSpan opentracing.Span, d time.Duration) *Log
 
 // Logs data regarding upstream http requests
 func (l *Logger) CallHTTPUpstream(parentRequest *http.Request, upstreamRequest *http.Request, ctx opentracing.SpanContext) *LogProcess {
-	l.log.Info("Calling upstream service", "uri", upstreamRequest.URL.String(), "type", "HTTP", "request", formatRequest(upstreamRequest))
-
 	st := time.Now()
 
 	clientSpan := opentracing.StartSpan(
@@ -200,6 +234,16 @@ func (l *Logger) CallHTTPUpstream(parentRequest *http.Request, upstreamRequest *
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(upstreamRequest.Header))
 
+	l.log.Info(
+		"Calling upstream service",
+		l.logFieldsWithSpanID(
+			ctx,
+			"uri", upstreamRequest.URL.String(),
+			"type", "HTTP",
+			"request", formatRequest(upstreamRequest),
+		),
+	)
+
 	return &LogProcess{
 		finished: func(err error, meta map[string]string) {
 			te := time.Now()
@@ -208,7 +252,14 @@ func (l *Logger) CallHTTPUpstream(parentRequest *http.Request, upstreamRequest *
 			// and log
 			if err != nil {
 				clientSpan.LogFields(log.Error(err))
-				l.log.Error("Error processing upstream request", "error", err)
+
+				l.log.Error(
+					"Error processing upstream request",
+					l.logFieldsWithSpanID(
+						clientSpan.Context(),
+						"error", err,
+					)...,
+				)
 			}
 
 			// add metadata to the trace and stats
@@ -225,7 +276,6 @@ func (l *Logger) CallHTTPUpstream(parentRequest *http.Request, upstreamRequest *
 // Logs data regarding upstream grpc requests
 // returns a context containing span context for tracing
 func (l *Logger) CallGRCPUpstream(uri string, ctx opentracing.SpanContext) (*LogProcess, context.Context) {
-	l.log.Info("Calling upstream service", "uri", uri, "type", "gRPC")
 
 	st := time.Now()
 
@@ -249,6 +299,15 @@ func (l *Logger) CallGRCPUpstream(uri string, ctx opentracing.SpanContext) (*Log
 
 	outCtx := metadata.NewOutgoingContext(context.Background(), md)
 
+	l.log.Info(
+		"Calling upstream service",
+		l.logFieldsWithSpanID(
+			clientSpan.Context(),
+			"uri", uri,
+			"type", "gRPC",
+		)...,
+	)
+
 	return &LogProcess{
 		finished: func(err error, meta map[string]string) {
 
@@ -258,7 +317,14 @@ func (l *Logger) CallGRCPUpstream(uri string, ctx opentracing.SpanContext) (*Log
 			// and log
 			if err != nil {
 				clientSpan.LogFields(log.Error(err))
-				l.log.Error("Error processing upstream request", "error", err)
+
+				l.log.Error(
+					"Error processing upstream request",
+					l.logFieldsWithSpanID(
+						clientSpan.Context(),
+						"error", err,
+					)...,
+				)
 			}
 
 			// add metadata to the trace and stats
@@ -267,6 +333,7 @@ func (l *Logger) CallGRCPUpstream(uri string, ctx opentracing.SpanContext) (*Log
 			}
 
 			l.metrics.Timing("upstream.request.grpc", te.Sub(st), getTags(err, meta))
+			clientSpan.Finish()
 		},
 	}, outCtx
 }
@@ -347,6 +414,7 @@ func httpRequestToGrpcMetadata(r *http.Request) metadata.MD {
 	return md
 }
 
+// debug function to print gRPC request metadata
 func printContext(ctx context.Context) string {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -359,4 +427,18 @@ func printContext(ctx context.Context) string {
 	}
 
 	return ret
+}
+
+// utility function to add the span and trace id to the log record
+func (l *Logger) logFieldsWithSpanID(ctx opentracing.SpanContext, fields ...interface{}) []interface{} {
+	if l.getSpanDetails != nil {
+		sd := l.getSpanDetails(ctx)
+
+		fields = append(fields, "span_id")
+		fields = append(fields, sd.SpanID)
+		fields = append(fields, "trace_id")
+		fields = append(fields, sd.TraceID)
+	}
+
+	return fields
 }

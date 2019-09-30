@@ -51,12 +51,13 @@ var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay 
 var rateLimitRPS = env.Float64("RATE_LIMIT", false, 0.0, "Rate in req/second after which service will return an error code")
 var rateLimitCode = env.Int("RATE_LIMIT_CODE", false, 503, "Code to return when service call is rate limited")
 
-// metrics / tracing
+// metrics / tracing / logging
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
 var datadogTracingEndpoint = env.String("TRACING_DATADOG", false, "", "Location of Datadog tracing collector")
 var datadogMetricsEndpoint = env.String("METRICS_DATADOG", false, "", "Location of Datadog metrics collector")
-
-var logger hclog.Logger
+var logFormat = env.String("LOG_FORMAT", false, "text", "Log file format. [text|json]")
+var logLevel = env.String("LOG_LEVEL", false, "info", "Log level for output. [info|debug|trace|warn|error]")
+var logOutput = env.String("LOG_OUTPUT", false, "stdout", "Location to write log output, default is stdout, e.g. /var/log/web.log")
 
 var help = flag.Bool("help", false, "--help to show help")
 
@@ -75,31 +76,17 @@ func main() {
 		os.Exit(0)
 	}
 
-	rd := timing.NewRequestDuration(
-		*timing50Percentile,
-		*timing90Percentile,
-		*timing99Percentile,
-		*timingVariance,
-	)
-
-	// create the error injector
-	errorInjector := errors.NewInjector(
-		logger.Named("error_injector"),
-		*errorRate,
-		*errorCode,
-		*errorType,
-		*errorDelay,
-		*rateLimitRPS,
-		*rateLimitCode,
-	)
+	var sdf tracing.SpanDetailsFunc
 
 	// do we need to setup tracing
 	if *zipkinEndpoint != "" {
 		tracing.NewOpenTracingClient(*zipkinEndpoint, *name, *listenAddress)
+		sdf = tracing.GetZipkinSpanDetails
 	}
 
 	if *datadogTracingEndpoint != "" {
 		tracing.NewDataDogClient(*datadogTracingEndpoint, *name)
+		sdf = tracing.GetDataDogSpanDetails
 	}
 
 	// do we need to setup metrics
@@ -109,7 +96,47 @@ func main() {
 		metrics = logging.NewStatsDMetrics(*name, "production", *datadogMetricsEndpoint)
 	}
 
-	logger := logging.NewLogger(metrics, hclog.Default())
+	lo := hclog.DefaultOptions
+	lo.Level = hclog.LevelFromString(*logLevel) // set the log level
+
+	// set the log format
+	if *logFormat == "json" {
+		lo.JSONFormat = true
+	}
+
+	switch *logOutput {
+	case "stdout":
+		lo.Output = os.Stdout
+	case "stderr":
+		lo.Output = os.Stderr
+	default:
+		f, err := os.Create(*logOutput)
+		if err != nil {
+			panic(err)
+		}
+
+		lo.Output = f
+	}
+
+	logger := logging.NewLogger(metrics, hclog.New(lo), sdf)
+
+	rd := timing.NewRequestDuration(
+		*timing50Percentile,
+		*timing90Percentile,
+		*timing99Percentile,
+		*timingVariance,
+	)
+
+	// create the error injector
+	errorInjector := errors.NewInjector(
+		logger.Log().Named("error_injector"),
+		*errorRate,
+		*errorCode,
+		*errorType,
+		*errorDelay,
+		*rateLimitRPS,
+		*rateLimitCode,
+	)
 
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest)
