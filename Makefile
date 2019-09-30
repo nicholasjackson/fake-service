@@ -36,5 +36,8 @@ test:
 run_functional_ddog: build_docker
 	cd examples/docker-compose-datadog && docker-compose up
 
+run_functional_ddog_consul: build_docker
+	cd examples/docker-compose-datadog && docker-compose -f docker-compose-consul.yml up
+
 run_functional_jaeger: build_docker
 	cd examples/docker-compose-jaeger && docker-compose up
