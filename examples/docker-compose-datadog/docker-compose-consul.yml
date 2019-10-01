@@ -5,7 +5,7 @@ version: "3.3"
 services:
 
   consul:
-    image: consul:1.6.1
+    image: consul:1.6.0
     command: ["consul", "agent", "-config-file=/config/config.hcl", "-config-dir=/config"]
     volumes:
     - "./consul_config:/config"
@@ -14,20 +14,6 @@ services:
     networks:
       vpcbr:
         ipv4_address: 10.5.0.2
-
-  # Config init container
-  central_config:
-    image: nicholasjackson/consul-envoy:v1.6.0-v0.10.0
-    environment:
-      CONSUL_HTTP_ADDR: 10.5.0.2:8500
-      CONSUL_GRPC_ADDR: 10.5.0.2:8502
-      CENTRAL_CONFIG: "/central_config/web-defaults.hcl;/central_config/api-defaults.hcl;/central_config/cache-defaults.hcl;/central_config/payments-defaults.hcl;central_config/currency-defaults.hcl;central_config/global-defaults.hcl"
-    volumes:
-    - "./central_config:/central_config"
-    command: ["tail", "-f", "/dev/null"]
-    networks:
-      vpcbr:
-        ipv4_address: 10.5.0.20
 
   # Define web service and envoy sidecar proxy
   web:
@@ -53,16 +39,16 @@ services:
     networks:
       vpcbr:
         ipv4_address: 10.5.0.3
-    depends_on:
-    - central_config
   web_envoy:
     image: nicholasjackson/consul-envoy:v1.6.1-v0.10.0
     environment:
       CONSUL_HTTP_ADDR: 10.5.0.2:8500
       CONSUL_GRPC_ADDR: 10.5.0.2:8502
       SERVICE_CONFIG: /config/web_v1.hcl
+      CENTRAL_CONFIG: "/central_config/web-defaults.hcl"
     volumes:
     - "./service_config:/config"
+    - "./central_config:/central_config"
     command: ["consul", "connect", "envoy", "-sidecar-for", "web-v1"]
     network_mode: "service:web"
 
@@ -90,16 +76,16 @@ services:
     networks:
       vpcbr:
         ipv4_address: 10.5.0.4
-    depends_on:
-    - central_config
   api_proxy:
     image: nicholasjackson/consul-envoy:v1.6.0-v0.10.0
     environment:
       CONSUL_HTTP_ADDR: 10.5.0.2:8500
       CONSUL_GRPC_ADDR: 10.5.0.2:8502
       SERVICE_CONFIG: /config/api_v1.hcl
+      CENTRAL_CONFIG: "/central_config/api-defaults.hcl"
     volumes:
     - "./service_config:/config"
+    - "./central_config:/central_config"
     command: ["consul", "connect", "envoy", "-sidecar-for", "api-v1", "--", "-l", "debug"]
     network_mode: "service:api"
 
@@ -123,16 +109,16 @@ services:
     networks:
       vpcbr:
         ipv4_address: 10.5.0.5
-    depends_on:
-    - central_config
   cache_proxy:
     image: nicholasjackson/consul-envoy:v1.6.0-v0.10.0
     environment:
       CONSUL_HTTP_ADDR: 10.5.0.2:8500
       CONSUL_GRPC_ADDR: 10.5.0.2:8502
       SERVICE_CONFIG: /config/cache_v1.hcl
+      CENTRAL_CONFIG: "/central_config/cache-defaults.hcl"
     volumes:
     - "./service_config:/config"
+    - "./central_config:/central_config"
     command: ["consul", "connect", "envoy", "-sidecar-for", "cache-v1"]
     network_mode: "service:cache"
 
@@ -140,7 +126,7 @@ services:
     image: nicholasjackson/fake-service:v0.5.5
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
-      UPSTREAM_URIS: "grpc://localhost:9091"
+      UPSTREAM_URIS: "http://localhost:9091"
       MESSAGE: "Payments response"
       NAME: "payments"
       SERVER_TYPE: "http"
@@ -153,16 +139,16 @@ services:
     networks:
       vpcbr:
         ipv4_address: 10.5.0.6
-    depends_on:
-    - central_config
   payments_proxy:
     image: nicholasjackson/consul-envoy:v1.6.0-v0.10.0
     environment:
       CONSUL_HTTP_ADDR: 10.5.0.2:8500
       CONSUL_GRPC_ADDR: 10.5.0.2:8502
       SERVICE_CONFIG: /config/payments_v2.hcl
+      CENTRAL_CONFIG: "/central_config/payment-defaults.hcl"
     volumes:
     - "./service_config:/config"
+    - "./central_config:/central_config"
     command: ["consul", "connect", "envoy", "-sidecar-for", "payments-v2"]
     network_mode: "service:payments"
 
@@ -172,9 +158,9 @@ services:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
       NAME: "currency"
-      SERVER_TYPE: "grpc"
-      ERROR_RATE: 0.5
-      ERROR_CODE: 14
+      SERVER_TYPE: "http"
+      ERROR_RATE: 0.0
+      ERROR_CODE: 500
       ERROR_TYPE: "http_error"
       TRACING_DATADOG: "datadog-agent:8126"
       METRICS_DATADOG: "datadog-agent:8125"
@@ -185,22 +171,23 @@ services:
     networks:
       vpcbr:
         ipv4_address: 10.5.0.7
-    depends_on:
-    - central_config
   currency_proxy:
     image: nicholasjackson/consul-envoy:v1.6.0-v0.10.0
     environment:
       CONSUL_HTTP_ADDR: 10.5.0.2:8500
       CONSUL_GRPC_ADDR: 10.5.0.2:8502
       SERVICE_CONFIG: /config/currency_v1.hcl
+      CENTRAL_CONFIG: "/central_config/currency-defaults.hcl"
     volumes:
     - "./service_config:/config"
-    command: ["consul", "connect", "envoy", "-sidecar-for", "currency-v1"]
+    - "./central_config:/central_config"
+    command: ["consul", "connect", "envoy", "-sidecar-for", "currency-v1", "--", "-l", "debug"]
     network_mode: "service:currency"
 
   # Tracing and Metrics
   datadog-agent:
     image: datadog/agent:latest
+    restart: always
     volumes:
     # For the Agent in general
     - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -224,7 +211,6 @@ services:
       DD_LOGS_ENABLED: "true"
       DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
       DD_AC_EXCLUDE: "name:datadog-agent"  # exclude Agent logs
-      DD_HOSTNAME: "10.5.0.8"
     labels:
       com.datadoghq.ad.logs: '[{"source": "datadog-agent", "service": "datadog-agent"}]'
     networks:

@@ -142,3 +142,10 @@ The initial `web` service can be accessed at port 9090, to test the system curl 
 The traces output from the system can be viewed in the DataDog APM browser:
 
 ![](../../images/ddog_tracing.png)
+
+## Consul Service Mesh
+To run this example including Consul Service Mesh the following command can be used:
+
+```
+docker-compose up -f docker-compose-consul.yml
+```

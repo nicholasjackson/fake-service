@@ -1,7 +1,7 @@
 Kind = "service-defaults"
 Name = "currency"
 
-Protocol = "grpc"
+Protocol = "http"
 
 MeshGateway = {
   mode = "local"

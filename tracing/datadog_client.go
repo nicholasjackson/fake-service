@@ -10,7 +10,7 @@ import (
 )
 
 func NewDataDogClient(uri, name string) {
-	t := opentracer.New(tracer.WithAgentAddr(uri), tracer.WithServiceName(name), tracer.WithAnalytics(true), tracer.WithDebugMode(true))
+	t := opentracer.New(tracer.WithAgentAddr(uri), tracer.WithServiceName(name), tracer.WithAnalytics(true))
 
 	opentracing.SetGlobalTracer(t)
 }
