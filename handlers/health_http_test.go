@@ -12,7 +12,7 @@ import (
 
 func setupHealth(t *testing.T) *Health {
 	return &Health{
-		logging.NewLogger(&logging.NullMetrics{}, hclog.Default()),
+		logging.NewLogger(&logging.NullMetrics{}, hclog.Default(), nil),
 	}
 }
 

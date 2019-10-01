@@ -241,7 +241,7 @@ func (l *Logger) CallHTTPUpstream(parentRequest *http.Request, upstreamRequest *
 			"uri", upstreamRequest.URL.String(),
 			"type", "HTTP",
 			"request", formatRequest(upstreamRequest),
-		),
+		)...,
 	)
 
 	return &LogProcess{

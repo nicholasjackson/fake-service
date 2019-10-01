@@ -22,7 +22,7 @@ import (
 )
 
 func setupFakeServer(t *testing.T, uris []string, errorRate float64) (*FakeServer, *client.MockHTTP, map[string]client.GRPC) {
-	l := logging.NewLogger(&logging.NullMetrics{}, hclog.Default())
+	l := logging.NewLogger(&logging.NullMetrics{}, hclog.Default(), nil)
 	c := &client.MockHTTP{}
 	d := timing.NewRequestDuration(
 		1*time.Nanosecond,
