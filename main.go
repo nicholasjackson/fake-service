@@ -15,6 +15,7 @@ import (
 	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
 	"github.com/nicholasjackson/fake-service/handlers"
+	"github.com/nicholasjackson/fake-service/load"
 	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/tracing"
@@ -50,6 +51,10 @@ var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay 
 // rate limit request to the service
 var rateLimitRPS = env.Float64("RATE_LIMIT", false, 0.0, "Rate in req/second after which service will return an error code")
 var rateLimitCode = env.Int("RATE_LIMIT_CODE", false, 503, "Code to return when service call is rate limited")
+
+// load generation
+var loadCPUCores = env.Int("LOAD_CPU_CORES", false, 0, "Number of cores to generate fake CPU load over")
+var loadCPUPercentage = env.Int("LOAD_CPU_PERCENTAGE", false, 0, "Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES")
 
 // metrics / tracing / logging
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
@@ -138,6 +143,9 @@ func main() {
 		*rateLimitCode,
 	)
 
+	// create the load generator
+	generator := load.NewGenerator(*loadCPUCores, *loadCPUPercentage)
+
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest)
 
@@ -179,6 +187,7 @@ func main() {
 			defaultClient,
 			grpcClients,
 			errorInjector,
+			generator,
 			logger,
 		)
 
@@ -211,6 +220,7 @@ func main() {
 			defaultClient,
 			grpcClients,
 			errorInjector,
+			generator,
 			logger,
 		)
 

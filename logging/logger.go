@@ -116,8 +116,18 @@ func (l *Logger) HandleHTTPRequest(r *http.Request) *LogProcess {
 				serverSpan.SetTag(k, v)
 			}
 
+			dur := te.Sub(st)
+
+			l.log.Info(
+				"Finished handling request",
+				l.logFieldsWithSpanID(
+					serverSpan.Context(),
+					"duration", dur,
+				)...,
+			)
+
 			serverSpan.Finish()
-			l.metrics.Timing("handle.request.http", te.Sub(st), getTags(err, meta))
+			l.metrics.Timing("handle.request.http", dur, getTags(err, meta))
 		},
 		Span: serverSpan,
 	}
@@ -180,8 +190,18 @@ func (l *Logger) HandleGRCPRequest(ctx context.Context) *LogProcess {
 				serverSpan.SetTag(k, v)
 			}
 
+			dur := te.Sub(st)
+
+			l.log.Info(
+				"Finished handling request",
+				l.logFieldsWithSpanID(
+					serverSpan.Context(),
+					"duration", dur,
+				)...,
+			)
+
 			serverSpan.Finish()
-			l.metrics.Timing("handle.request.grpc", te.Sub(st), getTags(err, meta))
+			l.metrics.Timing("handle.request.grpc", dur, getTags(err, meta))
 		},
 		Span: serverSpan,
 	}

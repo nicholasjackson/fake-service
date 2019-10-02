@@ -46,10 +46,22 @@ Environment variables:
        Rate in req/second after which service will return an error code
   RATE_LIMIT_CODE  default: '503'
        Code to return when service call is rate limited
+  LOAD_CPU_CORES  default: '0'
+       Number of cores to generate fake CPU load over
+  LOAD_CPU_PERCENTAGE  default: '0'
+       Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES
   TRACING_ZIPKIN  default: no default
        Location of Zipkin tracing collector
   TRACING_DATADOG  default: no default
        Location of Datadog tracing collector
+  METRICS_DATADOG  default: no default
+       Location of Datadog metrics collector
+  LOG_FORMAT  default: 'text'
+       Log file format. [text|json]
+  LOG_LEVEL  default: 'info'
+       Log level for output. [info|debug|trace|warn|error]
+  LOG_OUTPUT  default: 'stdout'
+       Location to write log output, default is stdout, e.g. /var/log/web.log
 ```
 
 ## Docker Container
@@ -244,4 +256,19 @@ Content-Type: text/plain; charset=utf-8
   "code": 429,
   "error": "Service exceeded rate limit"
 }
+```
+
+### Service Load
+Fake Service can simulate load carried out during a service call by configuring the following variables.
+```
+  LOAD_CPU_CORES  default: '0'
+       Number of cores to generate fake CPU load over
+  LOAD_CPU_PERCENTAGE  default: '0'
+       Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES
+```
+
+For example to simulate a service call consuming 100% of 8 Cores you can run fake service with the following command:
+
+```
+LOAD_CPU_CORES=8 LOAD_CPU_PERCENTAGE=100 fake-service
 ```

@@ -8,6 +8,7 @@ import (
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
+	"github.com/nicholasjackson/fake-service/load"
 	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
@@ -26,6 +27,7 @@ type FakeServer struct {
 	defaultClient client.HTTP
 	grpcClients   map[string]client.GRPC
 	errorInjector *errors.Injector
+	loadGenerator *load.Generator
 	log           *logging.Logger
 }
 
@@ -38,6 +40,7 @@ func NewFakeServer(
 	defaultClient client.HTTP,
 	grpcClients map[string]client.GRPC,
 	i *errors.Injector,
+	loadGenerator *load.Generator,
 	l *logging.Logger,
 ) *FakeServer {
 
@@ -50,14 +53,18 @@ func NewFakeServer(
 		defaultClient: defaultClient,
 		grpcClients:   grpcClients,
 		errorInjector: i,
+		loadGenerator: loadGenerator,
 		log:           l,
 	}
 }
 
 // Handle implmements the FakeServer Handle interface method
 func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, error) {
+
 	// start timing the service this is used later for the total request time
 	ts := time.Now()
+	finished := f.loadGenerator.Generate()
+	defer finished()
 
 	hq := f.log.HandleGRCPRequest(ctx)
 	defer hq.Finished()

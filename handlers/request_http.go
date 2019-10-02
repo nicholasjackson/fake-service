@@ -7,6 +7,7 @@ import (
 
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/errors"
+	"github.com/nicholasjackson/fake-service/load"
 	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
@@ -31,6 +32,7 @@ type Request struct {
 	defaultClient client.HTTP
 	grpcClients   map[string]client.GRPC
 	errorInjector *errors.Injector
+	loadGenerator *load.Generator
 	log           *logging.Logger
 }
 
@@ -43,6 +45,7 @@ func NewRequest(
 	defaultClient client.HTTP,
 	grpcClients map[string]client.GRPC,
 	errorInjector *errors.Injector,
+	loadGenerator *load.Generator,
 	log *logging.Logger,
 ) *Request {
 
@@ -55,12 +58,17 @@ func NewRequest(
 		defaultClient: defaultClient,
 		grpcClients:   grpcClients,
 		errorInjector: errorInjector,
+		loadGenerator: loadGenerator,
 		log:           log,
 	}
 }
 
 // Handle the request and call the upstream servers
 func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
+	// generate 100% CPU load for service
+	finished := rq.loadGenerator.Generate()
+	defer finished()
+
 	// start timing the service this is used later for the total request time
 	ts := time.Now()
 

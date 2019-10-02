@@ -13,6 +13,7 @@ import (
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/errors"
 	"github.com/nicholasjackson/fake-service/grpc/api"
+	"github.com/nicholasjackson/fake-service/load"
 	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/response"
 	"github.com/nicholasjackson/fake-service/timing"
@@ -41,6 +42,7 @@ func setupRequest(t *testing.T, uris []string, errorRate float64) (*Request, *cl
 	}
 
 	i := errors.NewInjector(hclog.Default(), errorRate, http.StatusInternalServerError, "http_error", 0, 0, 0)
+	lg := load.NewGenerator(0, 0)
 
 	return &Request{
 		name:          "test",
@@ -51,6 +53,7 @@ func setupRequest(t *testing.T, uris []string, errorRate float64) (*Request, *cl
 		defaultClient: c,
 		grpcClients:   grpcClients,
 		errorInjector: i,
+		loadGenerator: lg,
 		log:           l,
 	}, c, grpcClients
 }
