@@ -60,6 +60,20 @@ func (l *Logger) Log() hclog.Logger {
 	return l.log
 }
 
+// LogServiceStarted logs information when the service starts
+func (l *Logger) ServiceStarted(name, upstreamURIs string, upstreamWorkers int, listenAddress, serviceType string) {
+	l.log.Info(
+		"Starting service",
+		"name", name,
+		"upstreamURIs", upstreamURIs,
+		"upstreamWorkers", fmt.Sprint(upstreamWorkers),
+		"listenAddress", listenAddress,
+		"service type", serviceType,
+	)
+
+	l.metrics.Increment("service.started", nil)
+}
+
 // HandleHTTPRequest creates the request span and timing metrics for the handler
 func (l *Logger) HandleHTTPRequest(r *http.Request) *LogProcess {
 	// create the start time

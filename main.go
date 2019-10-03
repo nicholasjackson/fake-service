@@ -164,18 +164,7 @@ func main() {
 		grpcClients[u] = c
 	}
 
-	logger.Log().Info(
-		"Starting service",
-		"name", *name,
-		"message", *message,
-		"upstreamURIs", *upstreamURIs,
-		"upstreamWorkers", *upstreamWorkers,
-		"listenAddress", *listenAddress,
-		"http_client_keep_alives", *upstreamClientKeepAlives,
-		"http_append_request", *upstreamAppendRequest,
-		"service type", *serviceType,
-		"zipkin_endpoint", *zipkinEndpoint,
-	)
+	logger.ServiceStarted(*name, *upstreamURIs, *upstreamWorkers, *listenAddress, *serviceType)
 
 	if *serviceType == "http" {
 		rq := handlers.NewRequest(
