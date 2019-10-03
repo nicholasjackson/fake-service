@@ -147,5 +147,5 @@ The traces output from the system can be viewed in the DataDog APM browser:
 To run this example including Consul Service Mesh the following command can be used:
 
 ```
-docker-compose up -f docker-compose-consul.yml
+docker-compose -f docker-compose-consul.yml up
 ```
