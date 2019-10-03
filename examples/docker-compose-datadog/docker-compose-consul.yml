@@ -17,7 +17,7 @@ services:
 
   # Define web service and envoy sidecar proxy
   web:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://localhost:9091"
@@ -54,10 +54,10 @@ services:
 
   # Define api service and envoy sidecar proxy for version 1 of the service
   api:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
-      UPSTREAM_URIS: "http://localhost:9091/12434/jackson?auth=true, http://localhost:9092"
+      UPSTREAM_URIS: "http://localhost:9091/12434/jackson?auth=true, grpc://localhost:9092"
       UPSTREAM_WORKERS: 2
       MESSAGE: "API response"
       NAME: "api"
@@ -90,12 +90,12 @@ services:
     network_mode: "service:api"
 
   cache:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
       NAME: "cache"
-      SERVER_TYPE: "http"
+      SERVER_TYPE: "grpc"
       TIMING_50_PERCENTILE: 1ms
       TIMING_90_PERCENTILE: 2ms
       TIMING_99_PERCENTILE: 3ms
@@ -123,7 +123,7 @@ services:
     network_mode: "service:cache"
 
   payments:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://localhost:9091"
@@ -153,13 +153,13 @@ services:
     network_mode: "service:payments"
 
   currency:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
       NAME: "currency"
       SERVER_TYPE: "http"
-      ERROR_RATE: 0.0
+      ERROR_RATE: 0.2
       ERROR_CODE: 500
       ERROR_TYPE: "http_error"
       TRACING_DATADOG: "datadog-agent:8126"
@@ -211,6 +211,7 @@ services:
       DD_LOGS_ENABLED: "true"
       DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
       DD_AC_EXCLUDE: "name:datadog-agent"  # exclude Agent logs
+      DD_SITE: "datadoghq.eu"
     labels:
       com.datadoghq.ad.logs: '[{"source": "datadog-agent", "service": "datadog-agent"}]'
     networks:

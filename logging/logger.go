@@ -370,20 +370,6 @@ func (l *Logger) CallHealthHTTP() *LogProcess {
 	}
 }
 
-func getTags(err error, meta map[string]string) []string {
-	tags := []string{}
-
-	for k, v := range meta {
-		tags = append(tags, fmt.Sprintf("%s:%s", k, v))
-	}
-
-	if err != nil {
-		tags = append(tags, "error:true")
-	}
-
-	return tags
-}
-
 // formatRequest generates ascii representation of a request
 func formatRequest(r *http.Request) string {
 	// Create return string
@@ -461,4 +447,18 @@ func (l *Logger) logFieldsWithSpanID(ctx opentracing.SpanContext, fields ...inte
 	}
 
 	return fields
+}
+
+func getTags(err error, meta map[string]string) []string {
+	tags := []string{}
+
+	for k, v := range meta {
+		tags = append(tags, fmt.Sprintf("%s:%s", k, v))
+	}
+
+	if err != nil {
+		tags = append(tags, "error:true")
+	}
+
+	return tags
 }

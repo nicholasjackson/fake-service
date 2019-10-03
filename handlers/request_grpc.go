@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -79,7 +80,7 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		resp.Error = er.Error.Error()
 
 		hq.SetError(er.Error)
-		hq.SetMetadata("response", string(er.Code))
+		hq.SetMetadata("response", strconv.Itoa(er.Code))
 
 		// return the error
 		return &api.Response{Message: resp.ToJSON()}, status.New(codes.Code(resp.Code), er.Error.Error()).Err()
@@ -116,7 +117,7 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		resp.Code = int(codes.Internal)
 		resp.Error = upstreamError.Error()
 
-		hq.SetMetadata("response", string(resp.Code))
+		hq.SetMetadata("response", strconv.Itoa(resp.Code))
 		hq.SetError(upstreamError)
 
 		return &api.Response{Message: resp.ToJSON()}, status.New(codes.Internal, upstreamError.Error()).Err()

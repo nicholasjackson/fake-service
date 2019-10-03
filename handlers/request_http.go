@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -87,7 +88,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 
 		// log the error response
 		hq.SetError(er.Error)
-		hq.SetMetadata("response", string(er.Code))
+		hq.SetMetadata("response", strconv.Itoa(er.Code))
 
 		rw.WriteHeader(er.Code)
 		rw.Write([]byte(resp.ToJSON()))
@@ -126,7 +127,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		resp.Code = http.StatusInternalServerError
 
 		// log error
-		hq.SetMetadata("response", string(http.StatusInternalServerError))
+		hq.SetMetadata("response", strconv.Itoa(http.StatusInternalServerError))
 		hq.SetError(upstreamError)
 	} else {
 		// randomize the time the request takes if no error
@@ -140,7 +141,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		resp.Code = http.StatusOK
 
 		// log response code
-		hq.SetMetadata("response", string(http.StatusOK))
+		hq.SetMetadata("response", strconv.Itoa(http.StatusOK))
 	}
 
 	et = time.Now().Sub(ts)

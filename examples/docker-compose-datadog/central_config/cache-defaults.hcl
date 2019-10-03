@@ -1,7 +1,7 @@
 Kind = "service-defaults"
 Name = "cache"
 
-Protocol = "http"
+Protocol = "grpc"
 
 MeshGateway = {
   mode = "local"

@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/nicholasjackson/fake-service/client"
@@ -22,7 +23,7 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 
 	code, resp, err := defaultClient.Do(httpReq, pr)
 
-	hr.SetMetadata("response", string(code))
+	hr.SetMetadata("response", strconv.Itoa(code))
 	hr.SetError(err)
 
 	r := &response.Response{}
@@ -63,7 +64,7 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 
 		if s, ok := status.FromError(err); ok {
 			r.Code = int(s.Code())
-			hr.SetMetadata("ResponseCode", string(s.Code())) // set the response code for logging
+			hr.SetMetadata("ResponseCode", strconv.Itoa(r.Code)) // set the response code for logging
 		}
 	}
 
