@@ -139,8 +139,8 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	te := time.Now()
 	et = te.Sub(ts)
 
-	resp.StartTime = ts.Format("2006-01-02T15:04:05")
-	resp.EndTime = te.Format("2006-01-02T15:04:05")
+	resp.StartTime = ts.Format(timeFormat)
+	resp.EndTime = te.Format(timeFormat)
 	resp.Duration = et.String()
 
 	// add the response body if there is no upstream error

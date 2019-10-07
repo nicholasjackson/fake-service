@@ -24,18 +24,15 @@ class Timeline extends React.Component {
           // build the data
           var data = [
             [
-              { type: 'string', id: 'Term' },
-              { type: 'string', id: 'Name' },
+              { type: 'string', id: 'ID' },
+              { type: 'string', id: 'Service' },
               { type: 'date', id: 'Start' },
               { type: 'date', id: 'End' },
             ]
           ];
 
           // add the data from the nodes
-
-          // add the root node
-          console.log("date", Date.parse(result.start_time));
-          data.push([1, result.name, Date.parse(result.start_time), Date.parse(result.end_time)]);
+          data.push(this.parseElements(result, data));
 
           this.setState({
             ...this.state,
@@ -48,6 +45,23 @@ class Timeline extends React.Component {
       );
   }
 
+  parseElements(result, data) {
+    // add the root node
+    data.push([result.name, Date.parse(result.start_time), Date.parse(result.end_time)]);
+
+    if (!result.upstream_calls) {
+      console.log("No upstreams");
+      return data;
+    }
+
+    // add sub nodes
+    for (var i = 0; i < result.upstream_calls.length; i++) {
+      data.push(this.parseElements(result.upstream_calls[i], data));
+    }
+
+    return data;
+  }
+
   render() {
     return <Chart
       width={'500px'}
@@ -55,7 +69,6 @@ class Timeline extends React.Component {
       chartType="Timeline"
       loader={<div>Loading Chart</div>}
       data={this.state.data}
-      rootProps={{ 'data-testid': '1' }}
     />
   }
 }

@@ -4,7 +4,7 @@ version: "3.3"
 services:
 
   web:
-    image: nicholasjackson/fake-service:v0.6.2
+    image: nicholasjackson/fake-service:v0.6.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "grpc://api:9090"
@@ -20,7 +20,7 @@ services:
     - "9090:9090"
 
   api:
-    image: nicholasjackson/fake-service:v0.6.2
+    image: nicholasjackson/fake-service:v0.6.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://payments:9090, http://cache:9090"
@@ -35,7 +35,7 @@ services:
       TRACING_ZIPKIN: "http://jaeger:9411"
 
   cache:
-    image: nicholasjackson/fake-service:v0.6.2
+    image: nicholasjackson/fake-service:v0.6.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
@@ -48,7 +48,7 @@ services:
       TRACING_ZIPKIN: "http://jaeger:9411"
 
   payments:
-    image: nicholasjackson/fake-service:v0.6.2
+    image: nicholasjackson/fake-service:v0.6.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://currency:9090/12434/jackson?auth=true"
@@ -59,13 +59,13 @@ services:
       HTTP_CLIENT_APPEND_REQUEST: "true"
 
   currency:
-    image: nicholasjackson/fake-service:v0.6.2
+    image: nicholasjackson/fake-service:v0.6.3
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
       NAME: "currency"
       SERVER_TYPE: "http"
-      ERROR_RATE: 0
+      ERROR_RATE: 0.4
       ERROR_CODE: 500
       ERROR_TYPE: "http_error"
       TRACING_ZIPKIN: "http://jaeger:9411"

@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const timeFormat = "2006-01-02T15:04:05.000000"
+
 func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request, l *logging.Logger) (*response.Response, error) {
 	httpReq, _ := http.NewRequest("GET", uri, nil)
 
