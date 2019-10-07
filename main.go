@@ -19,6 +19,7 @@ import (
 	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/tracing"
+	"github.com/rs/cors"
 	"google.golang.org/grpc"
 )
 
@@ -182,10 +183,14 @@ func main() {
 
 		hq := handlers.NewHealth(logger)
 
-		http.HandleFunc("/", rq.Handle)
-		http.HandleFunc("/health", hq.Handle)
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", rq.Handle)
+		mux.HandleFunc("/health", hq.Handle)
 
-		err := http.ListenAndServe(*listenAddress, nil)
+		// CORS handler
+		hc := cors.Default().Handler(mux)
+
+		err := http.ListenAndServe(*listenAddress, hc)
 
 		if err != nil {
 			logger.Log().Error("Error starting service", "address", *listenAddress, "error", err)

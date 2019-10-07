@@ -16,6 +16,7 @@ require (
 	github.com/openzipkin/zipkin-go v0.2.0
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/rkt/rkt v1.30.0
+	github.com/rs/cors v1.7.0
 	github.com/smartystreets/goconvey v0.0.0-20190731233626-505e41936337 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.3.0

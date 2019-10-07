@@ -3,7 +3,6 @@ package response
 import (
 	"bytes"
 	"encoding/json"
-	"time"
 )
 
 // Response defines the type which is returned from the service
@@ -11,8 +10,8 @@ type Response struct {
 	Name          string     `json:"name,omitempty"`
 	URI           string     `json:"uri,omitempty"`
 	Type          string     `json:"type,omitempty"`
-	StartTime     time.Time  `json:"start_time,omitempty"`
-	EndTime       time.Time  `json:"end_time,omitempty"`
+	StartTime     string     `json:"start_time,omitempty"`
+	EndTime       string     `json:"end_time,omitempty"`
 	Duration      string     `json:"duration,omitempty"`
 	Body          string     `json:"body,omitempty"`
 	UpstreamCalls []Response `json:"upstream_calls,omitempty"`

@@ -65,7 +65,7 @@ services:
       MESSAGE: "Currency response"
       NAME: "currency"
       SERVER_TYPE: "http"
-      ERROR_RATE: 0.5
+      ERROR_RATE: 0
       ERROR_CODE: 500
       ERROR_TYPE: "http_error"
       TRACING_ZIPKIN: "http://jaeger:9411"
