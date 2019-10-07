@@ -122,6 +122,8 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	et := time.Now().Sub(ts)
 	rd := d - et
 
+	// set the start end end time
+
 	if upstreamError != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		resp.Code = http.StatusInternalServerError
@@ -144,7 +146,12 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		hq.SetMetadata("response", strconv.Itoa(http.StatusOK))
 	}
 
-	et = time.Now().Sub(ts)
+	// caclulcate total elapsed time including delay
+	te := time.Now()
+	et = te.Sub(ts)
+
+	resp.StartTime = ts
+	resp.EndTime = te
 	resp.Duration = et.String()
 
 	// add the response body

@@ -4,7 +4,7 @@ version: "3.3"
 services:
 
   web:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://api:9090"
@@ -25,7 +25,7 @@ services:
     - "9090:9090"
 
   api:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://payments:9090/12434/jackson?auth=true, http://cache:9090"
@@ -46,7 +46,7 @@ services:
       com.datadoghq.ad.logs: '[{"service": "api"}]'
 
   cache:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
@@ -64,7 +64,7 @@ services:
       com.datadoghq.ad.logs: '[{"service": "cache"}]'
 
   payments:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "grpc://currency:9090"
@@ -79,7 +79,7 @@ services:
       com.datadoghq.ad.logs: '[{"service": "payments"}]'
 
   currency:
-    image: nicholasjackson/fake-service:v0.5.5
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"

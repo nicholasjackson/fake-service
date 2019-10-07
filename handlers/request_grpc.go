@@ -135,7 +135,12 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	// log response code
 	hq.SetMetadata("response", "0")
 
-	et = time.Now().Sub(ts)
+	// caculate total elapsed time including duration
+	te := time.Now()
+	et = te.Sub(ts)
+
+	resp.StartTime = ts
+	resp.EndTime = te
 	resp.Duration = et.String()
 
 	// add the response body if there is no upstream error

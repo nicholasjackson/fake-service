@@ -17,7 +17,7 @@ services:
 
   # Define web service and envoy sidecar proxy
   web:
-    image: nicholasjackson/fake-service:v0.6.1
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://localhost:9091"
@@ -54,7 +54,7 @@ services:
 
   # Define api service and envoy sidecar proxy for version 1 of the service
   api:
-    image: nicholasjackson/fake-service:v0.6.1
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://localhost:9091/12434/jackson?auth=true, grpc://localhost:9092"
@@ -90,7 +90,7 @@ services:
     network_mode: "service:api"
 
   cache:
-    image: nicholasjackson/fake-service:v0.6.1
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
@@ -123,7 +123,7 @@ services:
     network_mode: "service:cache"
 
   payments:
-    image: nicholasjackson/fake-service:v0.6.1
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://localhost:9091"
@@ -153,13 +153,13 @@ services:
     network_mode: "service:payments"
 
   currency:
-    image: nicholasjackson/fake-service:v0.6.1
+    image: nicholasjackson/fake-service:v0.6.2
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
       NAME: "currency"
       SERVER_TYPE: "http"
-      ERROR_RATE: 0.4
+      ERROR_RATE: 1
       ERROR_CODE: 500
       ERROR_TYPE: "http_error"
       TRACING_DATADOG: "datadog-agent:8126"
