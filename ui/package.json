@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@mrblenny/react-flow-chart": "^0.0.7",
+    "moment": "^2.24.0",
     "react": "^16.10.2",
     "react-dom": "^16.10.2",
     "react-google-charts": "^3.0.15",

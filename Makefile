@@ -3,8 +3,16 @@ version=v0.6.3
 protos:
 	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
 
-build_linux:
-	CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
+# Requires Yarn and Node
+build_ui:
+	cd ui && PUBLIC_URL=/ui yarn build
+
+# Requires Packr to bundle assets
+build_linux: build_ui
+	CGO_ENABLED=0 GOOS=linux packr build -o bin/fake-service
+
+build_local: build_ui
+	packr build -o bin/fake-service
 
 build_docker: build_linux
 	docker build -t nicholasjackson/fake-service:${version} .

@@ -159,7 +159,7 @@ services:
       MESSAGE: "Currency response"
       NAME: "currency"
       SERVER_TYPE: "http"
-      ERROR_RATE: 1
+      ERROR_RATE: 0.4
       ERROR_CODE: 500
       ERROR_TYPE: "http_error"
       TRACING_DATADOG: "datadog-agent:8126"

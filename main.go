@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gobuffalo/packr/v2"
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/env"
 	"github.com/nicholasjackson/fake-service/client"
@@ -168,6 +169,7 @@ func main() {
 	logger.ServiceStarted(*name, *upstreamURIs, *upstreamWorkers, *listenAddress, *serviceType)
 
 	if *serviceType == "http" {
+
 		rq := handlers.NewRequest(
 			*name,
 			*message,
@@ -184,8 +186,17 @@ func main() {
 		hq := handlers.NewHealth(logger)
 
 		mux := http.NewServeMux()
-		mux.HandleFunc("/", rq.Handle)
+
+		// add the static files
+		box := packr.New("ui", "./ui/build")
+
+		for _, f := range box.List() {
+			logger.Log().Info("File", "path", f)
+		}
+		mux.Handle("/ui/", http.StripPrefix("/ui", http.FileServer(box)))
+
 		mux.HandleFunc("/health", hq.Handle)
+		mux.HandleFunc("/", rq.Handle)
 
 		// CORS handler
 		hc := cors.Default().Handler(mux)
