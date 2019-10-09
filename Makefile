@@ -1,10 +1,22 @@
-version=v0.6.2
+version=v0.7.0-beta.2
 
 protos:
 	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
 
-build_linux:
+# Requires Yarn and Node
+build_ui:
+	cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+
+# Requires Packr to bundle assets
+build_linux: build_ui
+	packr2 
 	CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
+	packr2 clean
+
+build_local: build_ui
+	packr2
+	go build -o bin/fake-service
+	packr2 clean
 
 build_docker: build_linux
 	docker build -t nicholasjackson/fake-service:${version} .

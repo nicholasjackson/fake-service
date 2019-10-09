@@ -115,6 +115,7 @@ func (l *Logger) HandleHTTPRequest(r *http.Request) *LogProcess {
 			// if there was an error add this to the trace
 			// and log
 			if err != nil {
+				serverSpan.SetTag("error", true)
 				serverSpan.LogFields(log.Error(err))
 				l.log.Error(
 					"Error handling request",
@@ -188,6 +189,7 @@ func (l *Logger) HandleGRCPRequest(ctx context.Context) *LogProcess {
 			// if there was an error add this to the trace
 			// and log
 			if err != nil {
+				serverSpan.SetTag("error", true)
 				serverSpan.LogFields(log.Error(err))
 
 				l.log.Error(
@@ -285,6 +287,7 @@ func (l *Logger) CallHTTPUpstream(parentRequest *http.Request, upstreamRequest *
 			// if there was an error add this to the trace
 			// and log
 			if err != nil {
+				clientSpan.SetTag("error", true)
 				clientSpan.LogFields(log.Error(err))
 
 				l.log.Error(
@@ -351,6 +354,7 @@ func (l *Logger) CallGRCPUpstream(uri string, ctx opentracing.SpanContext) (*Log
 			// and log
 			if err != nil {
 				clientSpan.LogFields(log.Error(err))
+				clientSpan.SetTag("error", true)
 
 				l.log.Error(
 					"Error processing upstream request",

@@ -150,8 +150,8 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	te := time.Now()
 	et = te.Sub(ts)
 
-	resp.StartTime = ts
-	resp.EndTime = te
+	resp.StartTime = ts.Format(timeFormat)
+	resp.EndTime = te.Format(timeFormat)
 	resp.Duration = et.String()
 
 	// add the response body

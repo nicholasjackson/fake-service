@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gobuffalo/packr/v2"
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/env"
 	"github.com/nicholasjackson/fake-service/client"
@@ -19,6 +20,7 @@ import (
 	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/tracing"
+	"github.com/rs/cors"
 	"google.golang.org/grpc"
 )
 
@@ -167,6 +169,7 @@ func main() {
 	logger.ServiceStarted(*name, *upstreamURIs, *upstreamWorkers, *listenAddress, *serviceType)
 
 	if *serviceType == "http" {
+
 		rq := handlers.NewRequest(
 			*name,
 			*message,
@@ -182,10 +185,23 @@ func main() {
 
 		hq := handlers.NewHealth(logger)
 
-		http.HandleFunc("/", rq.Handle)
-		http.HandleFunc("/health", hq.Handle)
+		mux := http.NewServeMux()
 
-		err := http.ListenAndServe(*listenAddress, nil)
+		// add the static files
+		logger.Log().Info("Adding handler for UI static files")
+		box := packr.New("ui", "./ui/build")
+		for _, f := range box.List() {
+			logger.Log().Info("File", "path", f)
+		}
+		mux.Handle("/ui/", http.StripPrefix("/ui", http.FileServer(box)))
+
+		mux.HandleFunc("/health", hq.Handle)
+		mux.HandleFunc("/", rq.Handle)
+
+		// CORS handler
+		hc := cors.Default().Handler(mux)
+
+		err := http.ListenAndServe(*listenAddress, hc)
 
 		if err != nil {
 			logger.Log().Error("Error starting service", "address", *listenAddress, "error", err)

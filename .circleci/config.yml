@@ -1,16 +1,43 @@
 version: 2
 jobs:
-  build:
+  build-ui:
+    docker:
+      - image: circleci/node
+    working_directory: ~/go/src/github.com/nicholasjackson/fake-service
+    steps:
+      - checkout
+      - run:
+          name: install deps
+          command: cd ui && yarn install
+      - run:
+          name: run tests
+          command: cd ui && CI=true yarn test
+      - run:
+          name: build UI
+          command: cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+      - persist_to_workspace:
+          root: ~/go/src/github.com/nicholasjackson
+          paths:
+            - fake-service
+
+  build-go:
     docker:
       - image: circleci/golang:1.12
     environment:
       GO111MODULE: "on"
     working_directory: /go/src/github.com/nicholasjackson/fake-service
     steps:
-      - checkout
+      - attach_workspace:
+          at: /go/src/github.com/nicholasjackson
+      - run:
+          name: add packr2 dependency
+          command: go get -u github.com/gobuffalo/packr/v2/packr2
       - run: 
           name: test application
           command: go test -v ./... 
+      - run:
+          name: compile UI dependencies
+          command: packr2
       - run: 
           name: build application
           command: CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
@@ -43,13 +70,19 @@ workflows:
   version: 2
   build-and-release:
     jobs:
-      - build:
+      - build-ui:
+          filters:
+            tags:
+              only: /.*/
+      - build-go:
+          requires:
+            - build-ui
           filters:
             tags:
               only: /.*/
       - release:
           requires:
-            - build
+            - build-go
           filters:
             tags:
               only: /^v.*/
