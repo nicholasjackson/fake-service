@@ -3,6 +3,9 @@ Fake Service for testing upstream service communications and testing service mes
 
 [![CircleCI](https://circleci.com/gh/nicholasjackson/fake-service.svg?style=svg)](https://circleci.com/gh/nicholasjackson/fake-service)
 
+Binaries: [https://github.com/nicholasjackson/fake-service/releases/](https://github.com/nicholasjackson/fake-service/releases/)  
+Docker Images: [https://hub.docker.com/r/nicholasjackson/fake-service](https://hub.docker.com/r/nicholasjackson/fake-service)  
+
 ## Configuration
 Configuration values are set using environment variables, for info please see the following list:
 
