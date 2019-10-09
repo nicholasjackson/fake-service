@@ -3,14 +3,14 @@ jobs:
   build-ui:
     docker:
       - image: circleci/node
-    working_directory: /go/src/github.com/nicholasjackson/fake-service
+    working_directory: ~/go/src/github.com/nicholasjackson/fake-service
     steps:
       - checkout
       - run:
           name: build UI
           command: cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
       - persist_to_workspace:
-          root: /go/src/github.com/nicholasjackson
+          root: ~/go/src/github.com/nicholasjackson
           paths:
             - fake-service
 
