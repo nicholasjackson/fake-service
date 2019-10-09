@@ -3,10 +3,18 @@ import React from 'react'
 import { processData } from './Data'
 
 const NodeInnerCustom = ({ node, children, ...otherProps }) => {
+  var className = "node";
+
+  if (node.properties.response != "200" && node.properties.response != "0") {
+    className = "node-error";
+  }
+
   return (
-    <div {...otherProps} className="node">
+    <div {...otherProps} className={className}>
       <b>name:</b> {node.properties.name}<br />
-      <b>duration:</b> {node.properties.duration}
+      <b>duration:</b> {node.properties.duration}<br />
+      <b>type:</b> {node.properties.type}<br />
+      <b>response:</b> {node.properties.response}
     </div >
   )
 }
@@ -16,7 +24,7 @@ class Timeline extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      url: props.url,
+      url: 'http://localhost:9090',
       loaded: false,
     };
   }

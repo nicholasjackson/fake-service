@@ -3,16 +3,17 @@ const startY = 100;
 const incrX = 300;
 const incrY = 300;
 
-function processNode(node, parent, xStart, yStart) {
+function processNode(node, parent, level, xStart, yStart) {
   var nodes = [];
   var links = [];
 
   var data = {
-    id: node.name,
+    id: node.name + "_" + level.toString(),
     properties: {
       name: node.name,
       duration: node.duration,
-      type: node.type
+      type: node.type,
+      response: node.code
     },
     position: {
       x: xStart,
@@ -28,7 +29,7 @@ function processNode(node, parent, xStart, yStart) {
     data.ports["input0"] = { id: "input0", type: "input" };
   }
 
-  // if we have no upstreams return
+  // if we have no Upstreams return
   if (!node.upstream_calls) {
     return { nodes: nodes, links: links };
   }
@@ -37,9 +38,10 @@ function processNode(node, parent, xStart, yStart) {
   for (var i = 0; i < node.upstream_calls.length; i++) {
     var nodeX = xStart + (incrX * i);
     var nodeY = yStart + incrY;
+    var nextLevel = parseInt(level) + 1;
 
     // process the child nodes
-    var n = processNode(node.upstream_calls[i], node, nodeX, nodeY);
+    var n = processNode(node.upstream_calls[i], node, nextLevel, nodeX, nodeY);
     nodes = nodes.concat(n.nodes);
     links = links.concat(n.links);
 
@@ -48,13 +50,13 @@ function processNode(node, parent, xStart, yStart) {
 
     // add the link
     links.push({
-      id: node.name + i,
+      id: node.name + "_" + level + "_" + i,
       from: {
-        nodeId: node.name,
+        nodeId: node.name + "_" + level,
         portId: "output" + i
       },
       to: {
-        nodeId: node.upstream_calls[i].name,
+        nodeId: node.upstream_calls[i].name + "_" + nextLevel,
         portId: "input0"
       }
     });
@@ -74,9 +76,8 @@ export const processData = (APIData) => {
     y: 0
   };
 
-
   // create create the nodes
-  var nd = processNode(APIData, null, startX, startY);
+  var nd = processNode(APIData, null, 0, startX, startY);
 
   // create the correct node structure from the flat array
   for (var n = 0; n < nd.nodes.length; n++) {

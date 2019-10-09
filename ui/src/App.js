@@ -12,7 +12,7 @@ function App() {
       <Navbar bg="primary" variant="dark" fixed="top">
         <Navbar.Brand><h1>Fake Service</h1></Navbar.Brand>
       </Navbar>
-      <Timeline url="http://localhost:9090" />
+      <Timeline />
     </div>
   );
 }

@@ -12,10 +12,16 @@ code {
     monospace;
 }
 
-.node {
+.node, .node-error {
   padding: 30px;
   font-family: sans-serif;
   text-align: center;
   font-size: 18px;
   color: black;
+  width: 240px;
+}
+
+.node-error {
+  background-color: rgb(200, 0, 0);
+  color: white;
 }
