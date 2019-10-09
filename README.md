@@ -272,3 +272,12 @@ For example to simulate a service call consuming 100% of 8 Cores you can run fak
 ```
 LOAD_CPU_CORES=8 LOAD_CPU_PERCENTAGE=100 fake-service
 ```
+
+## UI
+Fake Service also has a handy dandy UI which can be used to graphically represent the data which is returned as JSON when curling.
+
+The API is accessible at the path `/ui` and under the covers just calls the main API endpoint.
+
+**NOTE:** The UI is only available when a service is configured as `HTTP`.
+
+![](images/ui.png)
