@@ -10,6 +10,9 @@ jobs:
           name: install deps
           command: cd ui && yarn install
       - run:
+          name: run tests
+          command: cd ui && CI=true yarn test
+      - run:
           name: build UI
           command: cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
       - persist_to_workspace:
@@ -32,6 +35,9 @@ jobs:
       - run: 
           name: test application
           command: go test -v ./... 
+      - run:
+          name: compile UI dependencies
+          command: packr2
       - run: 
           name: build application
           command: CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
