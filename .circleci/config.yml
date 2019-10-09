@@ -7,8 +7,8 @@ jobs:
     steps:
       - checkout
       - run:
-        name: build UI
-        command: cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+          name: build UI
+          command: cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
       - persist_to_workspace:
           root: /go/src/github.com/nicholasjackson
           paths:
@@ -24,8 +24,8 @@ jobs:
       - attach_workspace:
           at: /go/src/github.com/nicholasjackson
       - run:
-        name: add packr2 dependency
-        command: go get -u github.com/gobuffalo/packr/v2/packr2
+          name: add packr2 dependency
+          command: go get -u github.com/gobuffalo/packr/v2/packr2
       - run: 
           name: test application
           command: go test -v ./... 
