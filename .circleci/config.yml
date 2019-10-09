@@ -7,6 +7,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: install deps
+          command: cd ui && yarn install
+      - run:
           name: build UI
           command: cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
       - persist_to_workspace:
