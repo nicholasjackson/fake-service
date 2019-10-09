@@ -29,6 +29,7 @@ require (
 	golang.org/x/crypto v0.0.0-20191002192127-34f69633bfdc // indirect
 	golang.org/x/sys v0.0.0-20191008105621-543471e840be // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
+	golang.org/x/tools v0.0.0-20191007185444-6536af71d98a // indirect
 	google.golang.org/grpc v1.22.1
 	gopkg.in/DataDog/dd-trace-go.v1 v1.18.0
 	gotest.tools/gotestsum v0.3.5 // indirect

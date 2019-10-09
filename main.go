@@ -188,8 +188,8 @@ func main() {
 		mux := http.NewServeMux()
 
 		// add the static files
+		logger.Log().Info("Adding handler for UI static files")
 		box := packr.New("ui", "./ui/build")
-
 		for _, f := range box.List() {
 			logger.Log().Info("File", "path", f)
 		}

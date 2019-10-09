@@ -5,7 +5,7 @@ import { processData } from './Data'
 const NodeInnerCustom = ({ node, children, ...otherProps }) => {
   var className = "node";
 
-  if (node.properties.response != "200" && node.properties.response != "0") {
+  if (node.properties.response !== 200 && node.properties.response !== 0) {
     className = "node-error";
   }
 
@@ -23,8 +23,13 @@ class Timeline extends React.Component {
 
   constructor(props) {
     super(props);
+
+    console.log(process.env.REACT_APP_API_URI);
+    var url = (process.env.REACT_APP_API_URI) ? "" + process.env.REACT_APP_API_URI : "http://localhost:9090";
+    console.log("API_URI: " + url);
+
     this.state = {
-      url: 'http://localhost:9090',
+      url: url,
       loaded: false,
     };
   }
@@ -40,8 +45,6 @@ class Timeline extends React.Component {
         (result) => {
           console.log("response from API:", result);
           var data = processData(result);
-
-          console.log("data to map", data);
 
           this.setState({ "data": data, loaded: true });
         },

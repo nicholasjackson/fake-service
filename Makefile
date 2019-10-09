@@ -5,14 +5,18 @@ protos:
 
 # Requires Yarn and Node
 build_ui:
-	cd ui && PUBLIC_URL=/ui yarn build
+	cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
 
 # Requires Packr to bundle assets
 build_linux: build_ui
-	CGO_ENABLED=0 GOOS=linux packr build -o bin/fake-service
+	packr2 
+	CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
+	packr2 clean
 
 build_local: build_ui
-	packr build -o bin/fake-service
+	packr2
+	go build -o bin/fake-service
+	packr2 clean
 
 build_docker: build_linux
 	docker build -t nicholasjackson/fake-service:${version} .
