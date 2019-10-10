@@ -66,15 +66,22 @@ func TestGRPCServiceHandlesErrorInjection(t *testing.T) {
 	resp, err := fs.Handle(context.Background(), nil)
 	status, ok := status.FromError(err)
 
-	mr := response.Response{}
-	mr.FromJSON([]byte(resp.Message))
-
 	assert.Error(t, err)
 	assert.True(t, ok)
+	assert.Equal(t, codes.Internal, status.Code())
+	assert.Nil(t, resp)
+
+	// test the response is returned in the error body
+	assert.Len(t, status.Details(), 1)
+	d, ok := status.Details()[0].(*api.Response)
+	assert.True(t, ok)
+
+	mr := response.Response{}
+	mr.FromJSON([]byte(d.Message))
 	assert.Equal(t, "test", mr.Name)
 	assert.Equal(t, "", mr.Body, "No body should be returned when the service has an exception")
-	assert.Equal(t, codes.Internal, status.Code())
-	assert.Len(t, mr.UpstreamCalls, 0)
+	assert.Equal(t, int(codes.Internal), mr.Code)
+	assert.Equal(t, "Service error automatically injected", mr.Error)
 }
 
 func TestGRPCServiceHandlesRequestWithHTTPUpstreamError(t *testing.T) {
@@ -83,19 +90,23 @@ func TestGRPCServiceHandlesRequestWithHTTPUpstreamError(t *testing.T) {
 	mc.On("Do", mock.Anything, mock.Anything).Return(http.StatusInternalServerError, []byte(`{"name": "upstream", "error": "boom", "code": 500}`), fmt.Errorf("It went bang"))
 
 	resp, err := fs.Handle(context.Background(), nil)
+	status, ok := status.FromError(err)
 
 	assert.Error(t, err)
+	assert.Nil(t, resp)
 	mc.AssertCalled(t, "Do", mock.Anything, mock.Anything)
-	mr := response.Response{}
-	mr.FromJSON([]byte(resp.Message))
 
+	// test the response is returned in the error body
+	assert.Len(t, status.Details(), 1)
+	d, ok := status.Details()[0].(*api.Response)
+	assert.True(t, ok)
+
+	mr := response.Response{}
+	mr.FromJSON([]byte(d.Message))
 	assert.Equal(t, "test", mr.Name)
-	assert.Equal(t, "", mr.Body, "No body should be returned when a service returns an error")
-	assert.Equal(t, 13, mr.Code)
-	assert.Len(t, mr.UpstreamCalls, 1)
-	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
-	assert.Equal(t, 500, mr.UpstreamCalls[0].Code)
-	assert.Equal(t, "It went bang", mr.UpstreamCalls[0].Error)
+	assert.Equal(t, "", mr.Body, "No body should be returned when the service has an exception")
+	assert.Equal(t, int(codes.Internal), mr.Code)
+	assert.Equal(t, "It went bang", mr.Error)
 }
 
 func TestGRPCServiceHandlesRequestWithHTTPUpstream(t *testing.T) {

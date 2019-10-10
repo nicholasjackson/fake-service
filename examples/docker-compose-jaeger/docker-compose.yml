@@ -59,6 +59,7 @@ services:
       TRACING_ZIPKIN: "http://jaeger:9411"
       HTTP_CLIENT_APPEND_REQUEST: "true"
 
+  # Will throw errors for 20% of all requests
   currency:
     image: nicholasjackson/fake-service:v0.7.0
     environment:
@@ -67,7 +68,7 @@ services:
       NAME: "currency"
       SERVER_TYPE: "grpc"
       ERROR_RATE: 0.2
-      ERROR_CODE: 500
+      ERROR_CODE: 14
       ERROR_TYPE: "http_error"
       TRACING_ZIPKIN: "http://jaeger:9411"
 
