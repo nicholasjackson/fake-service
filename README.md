@@ -67,11 +67,6 @@ Environment variables:
        Location to write log output, default is stdout, e.g. /var/log/web.log
 ```
 
-## Docker Container
-```
-docker pull nicholasjackson/fake-service:v0.3.2
-```
-
 ## Tracing
 When the `TRACING_ZIPKIN` environment variable is configured to point to a Zipkin compatible collector, Fake Service, will output
 traces using the OpenTracing library. These can be viewed Jaeger Tracing or other tools which support OpenTracing.
