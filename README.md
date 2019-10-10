@@ -283,4 +283,8 @@ The API is accessible at the path `/ui` and under the covers just calls the main
 
 **NOTE:** The UI is only available when a service is configured as `HTTP`.
 
+### Example UI
 ![](images/ui.png)
+
+### Example UI with errors
+![](images/ui-error.png)

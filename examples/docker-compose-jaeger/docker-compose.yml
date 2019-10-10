@@ -4,7 +4,7 @@ version: "3.3"
 services:
 
   web:
-    image: nicholasjackson/fake-service:v0.7.0
+    image: nicholasjackson/fake-service:v0.7.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://api:9090"
@@ -20,7 +20,7 @@ services:
     - "9090:9090"
 
   api:
-    image: nicholasjackson/fake-service:v0.7.0
+    image: nicholasjackson/fake-service:v0.7.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "grpc://currency:9090, http://cache:9090/abc/123123, http://payments:9090"
@@ -36,7 +36,7 @@ services:
       TRACING_ZIPKIN: "http://jaeger:9411"
 
   cache:
-    image: nicholasjackson/fake-service:v0.7.0
+    image: nicholasjackson/fake-service:v0.7.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Cache response"
@@ -49,7 +49,7 @@ services:
       TRACING_ZIPKIN: "http://jaeger:9411"
 
   payments:
-    image: nicholasjackson/fake-service:v0.7.0
+    image: nicholasjackson/fake-service:v0.7.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "grpc://currency:9090"
@@ -61,7 +61,7 @@ services:
 
   # Will throw errors for 20% of all requests
   currency:
-    image: nicholasjackson/fake-service:v0.7.0
+    image: nicholasjackson/fake-service:v0.7.1
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Currency response"
