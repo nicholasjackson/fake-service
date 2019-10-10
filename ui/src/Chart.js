@@ -2,6 +2,10 @@ import { FlowChartWithState } from "@mrblenny/react-flow-chart";
 import React from 'react'
 import { processData } from './Data'
 
+import Container from 'react-bootstrap/Container'
+import Row from 'react-bootstrap/Row'
+import Col from 'react-bootstrap/Col'
+
 const NodeInnerCustom = ({ node, children, ...otherProps }) => {
   var className = "node";
 
@@ -10,12 +14,26 @@ const NodeInnerCustom = ({ node, children, ...otherProps }) => {
   }
 
   return (
-    <div {...otherProps} className={className}>
-      <b>name:</b> {node.properties.name}<br />
-      <b>duration:</b> {node.properties.duration}<br />
-      <b>type:</b> {node.properties.type}<br />
-      <b>response:</b> {node.properties.response}
-    </div >
+    <Container {...otherProps} className={className}>
+      <Row>
+        <Col className="node-header">{node.properties.name}</Col>
+      </Row>
+      <Row>
+        <Col className="node-uri">{node.properties.uri}</Col>
+      </Row>
+      <Row>
+        <Col className="node-key">Duration</Col>
+        <Col className="node-value">{node.properties.duration}</Col>
+      </Row>
+      <Row>
+        <Col className="node-key">Type</Col>
+        <Col className="node-value">{node.properties.type}</Col>
+      </Row>
+      <Row>
+        <Col className="node-key">Response</Col>
+        <Col className="node-value">{node.properties.response}</Col>
+      </Row>
+    </Container>
   )
 }
 

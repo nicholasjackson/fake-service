@@ -13,7 +13,8 @@ function processNode(node, parent, level, xStart, yStart) {
       name: node.name,
       duration: node.duration,
       type: node.type,
-      response: node.code
+      response: node.code,
+      uri: node.uri,
     },
     position: {
       x: xStart,

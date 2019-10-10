@@ -43,7 +43,7 @@ call_downstream:
 	curl localhost:9090
 
 test:
-	filewatcher --idle-timeout 24h gotestsum
+	filewatcher --idle-timeout 24h -x **/ui gotestsum
 
 run_functional_ddog: build_docker
 	cd examples/docker-compose-datadog && docker-compose up

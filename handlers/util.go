@@ -66,7 +66,16 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 		if s, ok := status.FromError(err); ok {
 			r.Code = int(s.Code())
 			hr.SetMetadata("ResponseCode", strconv.Itoa(r.Code)) // set the response code for logging
+
+			// response will always be nil when an error has occured, check to see if we can get the details from the
+			// error message
+			if len(s.Details()) > 0 {
+				if d, ok := s.Details()[0].(*api.Response); ok {
+					r.FromJSON([]byte(d.Message))
+				}
+			}
 		}
+
 	}
 
 	if resp != nil {
@@ -81,6 +90,7 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 
 	// set the local URI for the upstream
 	r.URI = uri
+	r.Type = "gRPC"
 
 	if err != nil {
 		r.Error = err.Error()

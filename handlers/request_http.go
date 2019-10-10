@@ -80,6 +80,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	resp := &response.Response{}
 	resp.Name = rq.name
 	resp.Type = "HTTP"
+	resp.URI = r.URL.String()
 
 	// are we injecting errors, if so return the error
 	if er := rq.errorInjector.Do(); er != nil {

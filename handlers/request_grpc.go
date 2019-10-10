@@ -82,8 +82,12 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		hq.SetError(er.Error)
 		hq.SetMetadata("response", strconv.Itoa(er.Code))
 
+		// encode the response into the gRPC error message
+		s := status.New(codes.Code(resp.Code), er.Error.Error())
+		s, _ = s.WithDetails(&api.Response{Message: resp.ToJSON()})
+
 		// return the error
-		return &api.Response{Message: resp.ToJSON()}, status.New(codes.Code(resp.Code), er.Error.Error()).Err()
+		return nil, s.Err()
 	}
 
 	// if we need to create upstream requests create a worker pool
@@ -120,7 +124,11 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		hq.SetMetadata("response", strconv.Itoa(resp.Code))
 		hq.SetError(upstreamError)
 
-		return &api.Response{Message: resp.ToJSON()}, status.New(codes.Internal, upstreamError.Error()).Err()
+		// encode the response into the gRPC error message
+		s := status.New(codes.Code(resp.Code), upstreamError.Error())
+		s, _ = s.WithDetails(&api.Response{Message: resp.ToJSON()})
+
+		return nil, s.Err()
 	}
 
 	// randomize the time the request takes
