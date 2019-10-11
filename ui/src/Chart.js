@@ -42,22 +42,27 @@ class Timeline extends React.Component {
   constructor(props) {
     super(props);
 
-    console.log(process.env.REACT_APP_API_URI);
-    var url = (process.env.REACT_APP_API_URI) ? "" + process.env.REACT_APP_API_URI : "http://localhost:9090";
-    console.log("API_URI: " + url);
-
     this.state = {
-      url: url,
+      url: this.props.url,
+      refresh: this.props.refresh,
       loaded: false,
     };
   }
 
   componentWillMount() {
-    this.fetchData();
+    this.fetchData(this.state.url);
   }
 
-  fetchData() {
-    fetch(this.state.url)
+  componentWillReceiveProps(props) {
+    if (props.refresh !== undefined && props.refresh !== this.state.refresh) {
+      console.log("Reload data", props.url, props.refresh);
+      this.setState({ url: props.url, loaded: false, refresh: props.refresh });
+      this.fetchData(props.url);
+    }
+  }
+
+  fetchData(url) {
+    fetch(url)
       .then(res => res.json())
       .then(
         (result) => {
