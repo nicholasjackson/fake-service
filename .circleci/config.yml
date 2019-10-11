@@ -39,8 +39,11 @@ jobs:
           name: compile UI dependencies
           command: packr2
       - run: 
-          name: build application
-          command: CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
+          name: build application (linux)
+          command: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 o build -o bin/fake-service-linux
+      - run: 
+          name: build application (mac)
+          command: CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/fake-service-osx
       - persist_to_workspace:
           root: /go/src/github.com/nicholasjackson
           paths:
@@ -65,6 +68,18 @@ jobs:
       - run: 
           name: docker push
           command: docker push nicholasjackson/fake-service:${CIRCLE_TAG}
+ 
+  publish-github-release:
+    docker:
+      - image: cibuilds/github:0.10
+    working_directory: ~/go/src/github.com/nicholasjackson/fake-service
+    steps:
+      - attach_workspace:
+          at: ~/go/src/github.com/nicholasjackson
+      - run:
+          name: "Publish Release on GitHub"
+          command: |
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} ${CIRCLE_TAG} -replace ./bin/
 
 workflows:
   version: 2
@@ -81,6 +96,14 @@ workflows:
             tags:
               only: /.*/
       - release:
+          requires:
+            - build-go
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - publish-github-release:
           requires:
             - build-go
           filters:
