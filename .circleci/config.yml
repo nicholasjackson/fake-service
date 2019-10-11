@@ -40,7 +40,7 @@ jobs:
           command: packr2
       - run: 
           name: build application (linux)
-          command: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 o build -o bin/fake-service-linux
+          command: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/fake-service-linux
       - run: 
           name: build application (mac)
           command: CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/fake-service-osx

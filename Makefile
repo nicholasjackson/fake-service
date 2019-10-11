@@ -10,7 +10,7 @@ build_ui:
 # Requires Packr to bundle assets
 build_linux: build_ui
 	packr2 
-	CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service
+	CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service-linux
 	packr2 clean
 
 build_local: build_ui
