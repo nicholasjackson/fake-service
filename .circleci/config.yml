@@ -64,10 +64,14 @@ jobs:
          command: docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
       - run: 
          name: docker build
-         command: docker build -t nicholasjackson/fake-service:${CIRCLE_TAG} .
+         command: |
+           docker build -t nicholasjackson/fake-service:${CIRCLE_TAG} .
+           docker build -t nicholasjackson/fake-service:vm-${CIRCLE_TAG} -f Dockerfile-VM .
       - run: 
           name: docker push
-          command: docker push nicholasjackson/fake-service:${CIRCLE_TAG}
+          command: |
+            docker push nicholasjackson/fake-service:${CIRCLE_TAG}
+            docker push nicholasjackson/fake-service:vm-${CIRCLE_TAG}
  
   publish-github-release:
     docker:
