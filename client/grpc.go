@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"time"
 
 	"github.com/nicholasjackson/fake-service/grpc/api"
 	"google.golang.org/grpc"
@@ -13,8 +14,8 @@ type GRPC interface {
 }
 
 // NewGRPC creates a new GRPC client
-func NewGRPC(uri string) (GRPC, error) {
-	conn, err := grpc.Dial(uri, grpc.WithInsecure())
+func NewGRPC(uri string, timeout time.Duration) (GRPC, error) {
+	conn, err := grpc.Dial(uri, grpc.WithInsecure(), grpc.WithTimeout(timeout))
 	if err != nil {
 		return nil, err
 	}

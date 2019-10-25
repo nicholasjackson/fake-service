@@ -34,8 +34,9 @@ var name = env.String("NAME", false, "Service", "Name of the service")
 var listenAddress = env.String("LISTEN_ADDR", false, "0.0.0.0:9090", "IP address and port to bind service to")
 
 // Upstream client configuration
-var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, true, "Enable HTTP connection keep alives for upstream calls")
+var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, false, "Enable HTTP connection keep alives for upstream calls")
 var upstreamAppendRequest = env.Bool("HTTP_CLIENT_APPEND_REQUEST", false, true, "When true the path, querystring, and any headers sent to the service will be appended to any upstream calls")
+var upstreamRequestTimeout = env.Duration("HTTP_CLIENT_REQUEST_TIMEOUT", false, 30*time.Second, "Max time to wait before timeout for upstream requests, default 30s")
 
 // Service timing
 var timing50Percentile = env.Duration("TIMING_50_PERCENTILE", false, time.Duration(0*time.Millisecond), "Median duration for a request")
@@ -149,7 +150,7 @@ func main() {
 	generator := load.NewGenerator(*loadCPUCores, *loadCPUPercentage)
 
 	// create the httpClient
-	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest)
+	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest, *upstreamRequestTimeout)
 
 	// build the map of gRPCClients
 	grpcClients := make(map[string]client.GRPC)
@@ -157,7 +158,7 @@ func main() {
 		//strip the grpc:// from the uri
 		u2 := strings.TrimPrefix(u, "grpc://")
 
-		c, err := client.NewGRPC(u2)
+		c, err := client.NewGRPC(u2, *upstreamRequestTimeout)
 		if err != nil {
 			logger.Log().Error("Error creating GRPC client", "error", err)
 			os.Exit(1)
@@ -249,3 +250,5 @@ func tidyURIs(uris string) []string {
 
 	return resp
 }
+
+// return the ip addresses for this service

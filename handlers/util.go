@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -116,4 +117,42 @@ func processResponses(responses []worker.Done) []byte {
 	}
 
 	return []byte(strings.Join(respLines, "\n"))
+}
+
+// Get a list of non loopback Ip addresses
+// realistically this is not going to change to cache
+var ipAddresses []string
+
+func getIPInfo() []string {
+	if len(ipAddresses) > 0 {
+		return ipAddresses
+	}
+
+	ips := []string{}
+
+	ifaces, _ := net.Interfaces()
+	for _, i := range ifaces {
+		addrs, _ := i.Addrs()
+		// handle err
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			// ignore localhost
+			if !ip.IsLoopback() && !ip.IsMulticast() && ip.To4() != nil {
+				ips = append(ips, ip.String())
+			}
+			// process IP address
+		}
+	}
+
+	// cache the result
+	ipAddresses = ips
+	return ips
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 // HTTP defines an interface for upstream HTTP client requests
@@ -18,11 +19,12 @@ type HTTPImpl struct {
 }
 
 // NewHTTP creates a new HTTP client
-func NewHTTP(upstreamClientKeepAlives bool, appendRequest bool) HTTP {
+func NewHTTP(upstreamClientKeepAlives bool, appendRequest bool, timeOut time.Duration) HTTP {
 	client := &http.Client{
 		Transport: &http.Transport{
 			DisableKeepAlives: !upstreamClientKeepAlives,
 		},
+		Timeout: timeOut,
 	}
 
 	return &HTTPImpl{

@@ -73,6 +73,7 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	resp := &response.Response{}
 	resp.Name = f.name
 	resp.Type = "gRPC"
+	resp.IPAddresses = getIPInfo()
 
 	// are we injecting errors, if so return the error
 	if er := f.errorInjector.Do(); er != nil {

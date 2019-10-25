@@ -10,6 +10,7 @@ type Response struct {
 	Name          string     `json:"name,omitempty"`
 	URI           string     `json:"uri,omitempty"`
 	Type          string     `json:"type,omitempty"`
+	IPAddresses   []string   `json:"ip_addresses,omitempty"`
 	StartTime     string     `json:"start_time,omitempty"`
 	EndTime       string     `json:"end_time,omitempty"`
 	Duration      string     `json:"duration,omitempty"`
