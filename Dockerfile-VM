@@ -21,5 +21,14 @@ RUN sed -i 's/;nodaemon=false/nodaemon=true/g' /etc/supervisord.conf
 RUN mkdir app
 COPY ./bin/fake-service-linux /app/fake-service
 
+# set default env vars so supervisor
+# does not crash on start
+ENV CONSUL_SERVER=localhost
+ENV CONSUL_DATACENTER=dc1
+ENV SERVICE_ID=null
+
+# add default config folder
+RUN mkdir /config
+
 ENTRYPOINT ["/usr/bin/supervisord"]
 CMD ["-c", "/etc/supervisord.conf"]

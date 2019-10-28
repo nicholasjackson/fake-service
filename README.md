@@ -25,8 +25,10 @@ Environment variables:
        Name of the service
   LISTEN_ADDR  default: '0.0.0.0:9090'
        IP address and port to bind service to
-  HTTP_CLIENT_KEEP_ALIVES  default: 'true'
+  HTTP_CLIENT_KEEP_ALIVES  default: 'false'
        Enable HTTP connection keep alives for upstream calls
+  HTTP_CLIENT_REQUEST_TIMEOUT  default: '30s'
+       Maximum duration for upstream service requests
   HTTP_CLIENT_APPEND_REQUEST  default: 'true'
        When true the path, querystring, and any headers sent to the service will be appended to any upstream calls
   TIMING_50_PERCENTILE  default: '0s'

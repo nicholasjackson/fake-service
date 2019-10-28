@@ -17,7 +17,7 @@ services:
 
   # Define web service and envoy sidecar proxy
   web:
-    image: nicholasjackson/fake-service:vm-v0.7.6
+    image: nicholasjackson/fake-service:vm-v0.7.7
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       UPSTREAM_URIS: "http://localhost:9091"
@@ -39,7 +39,7 @@ services:
 
   # Define web service and envoy sidecar proxy
   api:
-    image: nicholasjackson/fake-service:vm-v0.7.6
+    image: nicholasjackson/fake-service:vm-v0.7.7
     environment:
       LISTEN_ADDR: 0.0.0.0:9090
       MESSAGE: "Hello World"
