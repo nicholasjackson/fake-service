@@ -13,10 +13,13 @@ const NodeInnerCustom = ({ node, children, ...otherProps }) => {
     className = "node-error";
   }
 
-
   const ips = [];
-  for(var n=0;n<node.properties.ip_addresses.length;n++){
-    ips.push(<div>{node.properties.ip_addresses[n]}</div>);
+
+  // if the node has ip addresses create individual elements for them
+  if(node.properties.ip_addresses !== undefined) {
+    for(var n=0;n<node.properties.ip_addresses.length;n++){
+      ips.push(<div>{node.properties.ip_addresses[n]}</div>);
+    }
   }
 
   return (
