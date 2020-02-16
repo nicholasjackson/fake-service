@@ -31,7 +31,7 @@ jobs:
           at: /go/src/github.com/nicholasjackson
       - run:
           name: add packr2 dependency
-          command: go get -u github.com/gobuffalo/packr/v2/packr2
+          command: GO111MODULE=off go get -u github.com/gobuffalo/packr/v2/packr2
       - run: 
           name: test application
           command: go test -v ./... 
