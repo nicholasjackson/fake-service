@@ -1,8 +1,6 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -67,22 +65,10 @@ var logFormat = env.String("LOG_FORMAT", false, "text", "Log file format. [text|
 var logLevel = env.String("LOG_LEVEL", false, "info", "Log level for output. [info|debug|trace|warn|error]")
 var logOutput = env.String("LOG_OUTPUT", false, "stdout", "Location to write log output, default is stdout, e.g. /var/log/web.log")
 
-var help = flag.Bool("help", false, "--help to show help")
-
 var version = "dev"
 
 func main() {
 	env.Parse()
-	flag.Parse()
-
-	// if the help flag is passed show configuration options
-	if *help == true {
-		fmt.Println("Fake service version:", version)
-		fmt.Println("Configuration values are set using environment variables, for info please see the following list:")
-		fmt.Println("")
-		fmt.Println(env.Help())
-		os.Exit(0)
-	}
 
 	var sdf tracing.SpanDetailsFunc
 
