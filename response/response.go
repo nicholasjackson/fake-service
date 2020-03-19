@@ -7,17 +7,18 @@ import (
 
 // Response defines the type which is returned from the service
 type Response struct {
-	Name          string     `json:"name,omitempty"`
-	URI           string     `json:"uri,omitempty"`
-	Type          string     `json:"type,omitempty"`
-	IPAddresses   []string   `json:"ip_addresses,omitempty"`
-	StartTime     string     `json:"start_time,omitempty"`
-	EndTime       string     `json:"end_time,omitempty"`
-	Duration      string     `json:"duration,omitempty"`
-	Body          string     `json:"body,omitempty"`
-	UpstreamCalls []Response `json:"upstream_calls,omitempty"`
-	Code          int        `json:"code"`
-	Error         string     `json:"error,omitempty"`
+	Name          string            `json:"name,omitempty"`
+	URI           string            `json:"uri,omitempty"`
+	Type          string            `json:"type,omitempty"`
+	IPAddresses   []string          `json:"ip_addresses,omitempty"`
+	StartTime     string            `json:"start_time,omitempty"`
+	EndTime       string            `json:"end_time,omitempty"`
+	Duration      string            `json:"duration,omitempty"`
+	Headers       map[string]string `json:headers,omitempty"`
+	Body          string            `json:"body,omitempty"`
+	UpstreamCalls []Response        `json:"upstream_calls,omitempty"`
+	Code          int               `json:"code"`
+	Error         string            `json:"error,omitempty"`
 }
 
 // ToJSON converts the response to a JSON string

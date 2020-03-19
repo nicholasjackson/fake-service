@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 )
 
 // HTTP defines an interface for upstream HTTP client requests
 type HTTP interface {
-	Do(r *http.Request, pr *http.Request) (int, []byte, error)
+	Do(r *http.Request, pr *http.Request) (int, []byte, map[string]string, error)
 }
 
 // HTTPImpl is the concrete implementation of the HTTP interface
@@ -34,7 +35,7 @@ func NewHTTP(upstreamClientKeepAlives bool, appendRequest bool, timeOut time.Dur
 }
 
 // Do makes the upstream request and returns a response
-func (h *HTTPImpl) Do(r *http.Request, pr *http.Request) (int, []byte, error) {
+func (h *HTTPImpl) Do(r *http.Request, pr *http.Request) (int, []byte, map[string]string, error) {
 	var data []byte
 
 	// do we need to append the headers, path and querystring from the original request?
@@ -46,21 +47,26 @@ func (h *HTTPImpl) Do(r *http.Request, pr *http.Request) (int, []byte, error) {
 	// call the upstream service
 	resp, err := h.defaultClient.Do(r)
 	if err != nil {
-		return -1, nil, fmt.Errorf("Error communicating with upstream service: %s", err)
+		return -1, nil, nil, fmt.Errorf("Error communicating with upstream service: %s", err)
 	}
 
 	defer resp.Body.Close()
 
 	data, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return resp.StatusCode, nil, fmt.Errorf("Error reading response body: %d", err)
+		return resp.StatusCode, nil, nil, fmt.Errorf("Error reading response body: %d", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return resp.StatusCode, data, fmt.Errorf("Error processing upstream request: %s", r.URL.String())
+		return resp.StatusCode, data, nil, fmt.Errorf("Error processing upstream request: %s", r.URL.String())
 	}
 
-	return resp.StatusCode, data, nil
+	headers := map[string]string{}
+	for k, v := range resp.Header {
+		headers[k] = strings.Join(v, ",")
+	}
+
+	return resp.StatusCode, data, headers, nil
 }
 
 // appendHeaders from the original request
