@@ -39,11 +39,14 @@ jobs:
           name: compile UI dependencies
           command: packr2
       - run: 
-          name: build application (linux)
+          name: build application (Linux)
           command: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/fake-service-linux
       - run: 
-          name: build application (mac)
+          name: build application (Mac)
           command: CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/fake-service-osx
+      - run: 
+          name: build application (Windows)
+          command: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o bin/fake-service.exe
       - persist_to_workspace:
           root: /go/src/github.com/nicholasjackson
           paths:

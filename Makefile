@@ -13,6 +13,11 @@ build_linux: build_ui
 	CGO_ENABLED=0 GOOS=linux go build -o bin/fake-service-linux
 	packr2 clean
 
+build_windows: build_ui
+	packr2 
+	CGO_ENABLED=0 GOOS=windows go build -o bin/fake-service.exe
+	packr2 clean
+
 build_local: build_ui
 	packr2
 	go build -o bin/fake-service
