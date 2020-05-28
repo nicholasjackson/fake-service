@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -157,8 +159,10 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	resp.Duration = et.String()
 
 	// add the response body
-	if upstreamError == nil {
-		resp.Body = rq.message
+	if strings.HasPrefix(rq.message, "{") {
+		resp.Body = json.RawMessage(rq.message)
+	} else {
+		resp.Body = json.RawMessage(fmt.Sprintf(`"%s"`, rq.message))
 	}
 
 	rw.Write([]byte(resp.ToJSON()))

@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -154,7 +156,11 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 
 	// add the response body if there is no upstream error
 	if upstreamError == nil {
-		resp.Body = f.message
+		if strings.HasPrefix(f.message, "{") {
+			resp.Body = json.RawMessage(f.message)
+		} else {
+			resp.Body = json.RawMessage(fmt.Sprintf(`"%s"`, f.message))
+		}
 	}
 
 	return &api.Response{Message: resp.ToJSON()}, nil

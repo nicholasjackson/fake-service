@@ -15,7 +15,7 @@ type Response struct {
 	EndTime       string            `json:"end_time,omitempty"`
 	Duration      string            `json:"duration,omitempty"`
 	Headers       map[string]string `json:headers,omitempty"`
-	Body          string            `json:"body,omitempty"`
+	Body          json.RawMessage   `json:"body,omitempty"`
 	UpstreamCalls []Response        `json:"upstream_calls,omitempty"`
 	Code          int               `json:"code"`
 	Error         string            `json:"error,omitempty"`

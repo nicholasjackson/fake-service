@@ -20,7 +20,7 @@ Environment variables:
   SERVER_TYPE  default: 'http'
        Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC
   MESSAGE  default: 'Hello World'
-       Message to be returned from service
+       Message to be returned from service, can either be a string or valid JSON
   NAME  default: 'Service'
        Name of the service
   LISTEN_ADDR  default: '0.0.0.0:9090'

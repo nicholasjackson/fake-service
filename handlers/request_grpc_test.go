@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -56,7 +57,11 @@ func TestGRPCServiceHandlesRequestWithNoUpstream(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, "test", mr.Name)
-	assert.Equal(t, "hello world", mr.Body)
+
+	d, err := mr.Body.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, "\"hello world\"", string(d))
+
 	assert.Len(t, mr.UpstreamCalls, 0)
 }
 
@@ -79,7 +84,7 @@ func TestGRPCServiceHandlesErrorInjection(t *testing.T) {
 	mr := response.Response{}
 	mr.FromJSON([]byte(d.Message))
 	assert.Equal(t, "test", mr.Name)
-	assert.Equal(t, "", mr.Body, "No body should be returned when the service has an exception")
+	assert.Equal(t, json.RawMessage(json.RawMessage(nil)), mr.Body, "No body should be returned when the service has an exception")
 	assert.Equal(t, int(codes.Internal), mr.Code)
 	assert.Equal(t, "Service error automatically injected", mr.Error)
 }
@@ -104,7 +109,7 @@ func TestGRPCServiceHandlesRequestWithHTTPUpstreamError(t *testing.T) {
 	mr := response.Response{}
 	mr.FromJSON([]byte(d.Message))
 	assert.Equal(t, "test", mr.Name)
-	assert.Equal(t, "", mr.Body, "No body should be returned when the service has an exception")
+	assert.Equal(t, json.RawMessage(json.RawMessage(nil)), mr.Body, "No body should be returned when the service has an exception")
 	assert.Equal(t, int(codes.Internal), mr.Code)
 	assert.Equal(t, "It went bang", mr.Error)
 }
@@ -122,7 +127,11 @@ func TestGRPCServiceHandlesRequestWithHTTPUpstream(t *testing.T) {
 	mr.FromJSON([]byte(resp.Message))
 
 	assert.Equal(t, "test", mr.Name)
-	assert.Equal(t, "hello world", mr.Body)
+
+	d, err := mr.Body.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, "\"hello world\"", string(d))
+
 	assert.Len(t, mr.UpstreamCalls, 1)
 	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
 	assert.Equal(t, "http://test.com", mr.UpstreamCalls[0].URI)
@@ -143,7 +152,11 @@ func TestGRPCServiceHandlesRequestWithGRPCUpstream(t *testing.T) {
 	gcMock.AssertCalled(t, "Handle", mock.Anything, mock.Anything)
 
 	assert.Equal(t, "test", mr.Name)
-	assert.Equal(t, "hello world", mr.Body)
+
+	d, err := mr.Body.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, "\"hello world\"", string(d))
+
 	assert.Len(t, mr.UpstreamCalls, 1)
 	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
 	assert.Equal(t, "grpc://test.com", mr.UpstreamCalls[0].URI)

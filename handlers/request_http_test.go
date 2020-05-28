@@ -70,7 +70,35 @@ func TestRequestCompletesWithNoUpstreams(t *testing.T) {
 	c.AssertNotCalled(t, "Do", mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "test", mr.Name)
-	assert.Equal(t, "hello world", mr.Body)
+
+	// check the body
+	d, err := mr.Body.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, "\"hello world\"", string(d))
+
+	assert.Equal(t, http.StatusOK, mr.Code)
+	assert.Len(t, mr.UpstreamCalls, 0)
+}
+
+func TestRequestCompletesWithNoUpstreamsJSONBody(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
+	rr := httptest.NewRecorder()
+	h, c, _ := setupRequest(t, nil, 0)
+	h.message = "{\"hello\": \"world\"}"
+
+	h.Handle(rr, r)
+	mr := response.Response{}
+	mr.FromJSON([]byte(rr.Body.String()))
+
+	c.AssertNotCalled(t, "Do", mock.Anything)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "test", mr.Name)
+
+	// check the body
+	d, err := mr.Body.MarshalJSON()
+	assert.NoError(t, err)
+	assert.JSONEq(t, h.message, string(d))
+
 	assert.Equal(t, http.StatusOK, mr.Code)
 	assert.Len(t, mr.UpstreamCalls, 0)
 }
@@ -110,7 +138,11 @@ func TestRequestCompletesWithHTTPUpstreams(t *testing.T) {
 	c.AssertNotCalled(t, "Do", mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "test", mr.Name)
-	assert.Equal(t, "hello world", mr.Body)
+
+	d, err := mr.Body.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, "\"hello world\"", string(d))
+
 	assert.Len(t, mr.UpstreamCalls, 1)
 	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
 	assert.Equal(t, "http://test.com", mr.UpstreamCalls[0].URI)
@@ -174,7 +206,11 @@ func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 	gcMock.AssertCalled(t, "Handle", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "test", mr.Name)
-	assert.Equal(t, "hello world", mr.Body)
+
+	d, err := mr.Body.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, "\"hello world\"", string(d))
+
 	assert.Len(t, mr.UpstreamCalls, 1)
 	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
 	assert.Equal(t, "grpc://test.com", mr.UpstreamCalls[0].URI)
