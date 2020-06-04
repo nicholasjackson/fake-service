@@ -192,16 +192,21 @@ func main() {
 		mux.HandleFunc("/", rq.Handle)
 
 		// CORS
-		allowHeaders := strings.Split(*allowedHeaders, ",")
-		allowed := strings.Split(*allowedOrigins, ",")
-
-		var allowCreds cors.CORSOption
-		if *allowCredentials {
-			allowCreds = cors.AllowCredentials()
+		corsOptions := make([]cors.CORSOption, 0)
+		if *allowedOrigins != "" {
+			corsOptions = append(corsOptions, cors.AllowedOrigins(strings.Split(*allowedOrigins, ",")))
 		}
 
-		logger.Log().Info("Settings CORS options", "allowed_origins", allowed, "allowed_headers", allowHeaders)
-		ch := cors.CORS(cors.AllowedOrigins(allowed), cors.AllowedHeaders(allowHeaders), allowCreds)
+		if *allowedHeaders != "" {
+			corsOptions = append(corsOptions, cors.AllowedHeaders(strings.Split(*allowedHeaders, ",")))
+		}
+
+		if *allowCredentials {
+			corsOptions = append(corsOptions, cors.AllowCredentials())
+		}
+
+		logger.Log().Info("Settings CORS options", "allow_creds", *allowCredentials, "allow_headers", *allowedHeaders, "allow_origins", *allowedOrigins)
+		ch := cors.CORS(corsOptions...)
 
 		err := http.ListenAndServe(*listenAddress, ch(mux))
 

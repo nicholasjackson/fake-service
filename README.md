@@ -26,7 +26,11 @@ Environment variables:
   LISTEN_ADDR  default: '0.0.0.0:9090'
        IP address and port to bind service to
   ALLOWED_ORIGINS  default: '*'
-       Comma separated list of origins to allow for CORS requests
+       Comma separated list of allowed origins for CORS requests
+  ALLOWED_HEADERS  default: 'Accept,Accept-Language,Content-Language,Origin,Content-Type'
+       Comma separated list of allowed headers for CORS requests
+  ALLOW_CREDENTIALS  default: 'false'
+       Are credentials allowed for CORS requests
   HTTP_CLIENT_KEEP_ALIVES  default: 'false'
        Enable HTTP connection keep alives for upstream calls
   HTTP_CLIENT_REQUEST_TIMEOUT  default: '30s'
