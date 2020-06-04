@@ -24,7 +24,7 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 	hr := l.CallHTTPUpstream(pr, httpReq, ctx)
 	defer hr.Finished()
 
-	code, resp, headers, err := defaultClient.Do(httpReq, pr)
+	code, resp, headers, cookies, err := defaultClient.Do(httpReq, pr)
 
 	hr.SetMetadata("response", strconv.Itoa(code))
 	hr.SetError(err)
@@ -45,6 +45,7 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 	r.URI = uri
 	r.Code = code
 	r.Headers = headers
+	r.Cookies = cookies
 
 	if err != nil {
 		r.Error = err.Error()

@@ -18,7 +18,9 @@ import (
 	"github.com/nicholasjackson/fake-service/logging"
 	"github.com/nicholasjackson/fake-service/timing"
 	"github.com/nicholasjackson/fake-service/tracing"
-	"github.com/rs/cors"
+
+	cors "github.com/gorilla/handlers"
+
 	"google.golang.org/grpc"
 )
 
@@ -30,6 +32,10 @@ var message = env.String("MESSAGE", false, "Hello World", "Message to be returne
 var name = env.String("NAME", false, "Service", "Name of the service")
 
 var listenAddress = env.String("LISTEN_ADDR", false, "0.0.0.0:9090", "IP address and port to bind service to")
+
+var allowedOrigins = env.String("ALLOWED_ORIGINS", false, "*", "Comma separated list of allowed origins for CORS requests")
+var allowedHeaders = env.String("ALLOWED_HEADERS", false, "Accept,Accept-Language,Content-Language,Origin,Content-Type", "Comma separated list of allowed headers for cors requests")
+var allowCredentials = env.Bool("ALLOW_CREDENTIALS", false, false, "Are credentials allowed for CORS requests")
 
 // Upstream client configuration
 var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, false, "Enable HTTP connection keep alives for upstream calls")
@@ -185,10 +191,19 @@ func main() {
 		mux.HandleFunc("/health", hq.Handle)
 		mux.HandleFunc("/", rq.Handle)
 
-		// CORS handler
-		hc := cors.Default().Handler(mux)
+		// CORS
+		allowHeaders := strings.Split(*allowedHeaders, ",")
+		allowed := strings.Split(*allowedOrigins, ",")
 
-		err := http.ListenAndServe(*listenAddress, hc)
+		var allowCreds cors.CORSOption
+		if *allowCredentials {
+			allowCreds = cors.AllowCredentials()
+		}
+
+		logger.Log().Info("Settings CORS options", "allowed_origins", allowed, "allowed_headers", allowHeaders)
+		ch := cors.CORS(cors.AllowedOrigins(allowed), cors.AllowedHeaders(allowHeaders), allowCreds)
+
+		err := http.ListenAndServe(*listenAddress, ch(mux))
 
 		if err != nil {
 			logger.Log().Error("Error starting service", "address", *listenAddress, "error", err)

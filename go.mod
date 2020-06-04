@@ -9,6 +9,7 @@ require (
 	github.com/gobuffalo/packd v1.0.0 // indirect
 	github.com/gobuffalo/packr/v2 v2.7.1
 	github.com/golang/protobuf v1.3.2
+	github.com/gorilla/handlers v1.4.2
 	github.com/hashicorp/go-hclog v0.9.2
 	github.com/nicholasjackson/env v0.6.0
 	github.com/opentracing/opentracing-go v1.1.0
