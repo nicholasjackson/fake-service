@@ -23,6 +23,7 @@ COPY ./bin/fake-service-linux /app/fake-service
 
 # set default env vars so supervisor
 # does not crash on start
+ENV CONSUL_HTTP_ADDR=localhost:8500
 ENV CONSUL_SERVER=localhost
 ENV CONSUL_DATACENTER=dc1
 ENV SERVICE_ID=null
