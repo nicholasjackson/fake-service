@@ -1,9 +1,9 @@
-# Traffic Routing
+## Frontend to gRPC and HTTP upstreams
 This demo provides a Consul connect example based on a HTTP client and two upstream services: one using gRPC and one using regular REST API. Below is a diagram.
 
 ![](traffic_routing/images/routing.png)
 
-## Description
+### Description
 The frontend service `web` is configured to connect to an HTTP service called `payments` and a gRPC service called `currency`. These two upstreams are configured in the [service_config/web_v1.hcl](service_config/web_v1.hcl) file as follows.
 ```
         upstreams = [{
