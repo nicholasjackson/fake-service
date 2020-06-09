@@ -5,7 +5,7 @@ services:
     image: consul:1.8.0-beta2
     command: ["consul","agent","-config-file=/config/consul-single-dc.hcl","-config-dir=/config"]
     volumes:
-      - "consul_config:/config"
+      - "./consul_config:/config"
     ports:
       - 38500:8500
     networks:

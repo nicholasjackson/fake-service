@@ -50,7 +50,7 @@ Open up a browser to localhost:38500 to view the Consul UI. Navigate to services
 
 ### Interact with the web service
 ```
-curl http://localhost:39090/
+$ curl http://localhost:39090/
 {
   "name": "web",
   "type": "HTTP",
@@ -77,14 +77,25 @@ curl http://localhost:39090/
 
 To see the Envoy proxy localhost listeners, run the following command:
 ```
-curl http://localhost:39005/
+$ curl http://localhost:39005/listeners
+public_listener:10.5.0.3:20000::10.5.0.3:20000
+payments:127.0.0.1:9091::127.0.0.1:9091
+currency:127.0.0.1:9092::127.0.0.1:9092
 ```
 
-### Define intentions
-Deny all:
-UI: Go to the Intentions tab and create a `*` `*` deny rule.
+### Intentions
+Go to the Intentions tab on the Consul UI and create a `*` `*` deny rule. Now invoke the web service again and you should see it fail.
+```
+curl http://localhost:39090
 ```
 
+Now create a `web` to `payments` allow rule, and a `web` to `currency` allow rule. Now invoke the web service again and you should see it work again: `curl http://localhost:39090`.
+ 
+To create the intentions in the CLI you can use the commands below
+```
+consul intention create -deny '* '*'
+consul intention create -allow 'web' 'payments'
+consul intention create -allow 'web' 'currency'
 ```
 
 
