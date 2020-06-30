@@ -1,0 +1,92 @@
+version: "3.3"
+services:
+
+  consul:
+    image: consul:1.8.0-beta2
+    command: ["consul","agent","-config-file=/config/consul-single-dc.hcl","-config-dir=/config"]
+    volumes:
+      - "./consul_config:/config"
+    ports:
+      - 38500:8500
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.2
+
+  # Define web service and envoy sidecar proxy
+  web:
+    image: nicholasjackson/fake-service:v0.10.0
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      UPSTREAM_URIS: "http://localhost:9091, grpc://localhost:9092"
+      MESSAGE: "Hello World"
+      HTTP_CLIENT_KEEP_ALIVES: "false"
+      HTTP_CLIENT_APPEND_REQUEST: "true"
+      NAME: web
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.3
+    ports:
+      - 39090:9090
+      - 39005:19005
+  web_envoy:
+    image: nicholasjackson/consul-envoy:v1.8.0-beta2-v0.14.1
+    environment:
+      CONSUL_HTTP_ADDR: 10.5.0.2:8500
+      CONSUL_GRPC_ADDR: 10.5.0.2:8502
+      SERVICE_CONFIG: /config/web_v1.hcl
+    volumes:
+      - "./service_config:/config"
+      - "./central_config:/central_config"
+    command: ["consul", "connect", "envoy", "-sidecar-for", "web-v1","-admin-bind", "0.0.0.0:19005"]
+    network_mode: "service:web"
+
+  # Define api service and envoy sidecar proxy for version 1 of the service
+  payments_v1:
+    image: nicholasjackson/fake-service:v0.10.0
+    environment:
+      LISTEN_ADDR: localhost:9090
+      NAME: payments-v1
+      MESSAGE: "Payments"
+      SERVER_TYPE: "http"
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.4
+  payments_proxy:
+    image: nicholasjackson/consul-envoy:v1.8.0-beta2-v0.14.1
+    environment:
+      CONSUL_HTTP_ADDR: 10.5.0.2:8500
+      CONSUL_GRPC_ADDR: 10.5.0.2:8502
+      SERVICE_CONFIG: /config/payments_v1.hcl
+    volumes:
+      - "./service_config:/config"
+    command: ["consul", "connect", "envoy","-sidecar-for", "payments-v1"]
+    network_mode: "service:payments_v1"
+  
+  # Define currency service and envoy sidecar proxy for version 2 of the service
+  currency_v1:
+    image: nicholasjackson/fake-service:v0.10.0
+    environment:
+      LISTEN_ADDR: localhost:9090
+      NAME: currency-v1
+      MESSAGE: "Currency"
+      SERVER_TYPE: "grpc"
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.5
+  currency_proxy:
+    image: nicholasjackson/consul-envoy:v1.8.0-beta2-v0.14.1
+    environment:
+      CONSUL_HTTP_ADDR: 10.5.0.2:8500
+      CONSUL_GRPC_ADDR: 10.5.0.2:8502
+      SERVICE_CONFIG: /config/currency_v1.hcl
+    volumes:
+      - "./service_config:/config"
+    command: ["consul", "connect", "envoy","-sidecar-for", "currency-v1"]
+    network_mode: "service:currency_v1"
+  
+networks:
+  vpcbr:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 10.5.0.0/16
