@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -23,6 +24,8 @@ import (
 	cors "github.com/gorilla/handlers"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
 )
 
 var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs of the upstream services to call")
@@ -249,7 +252,21 @@ func main() {
 			os.Exit(1)
 		}
 
-		grpcServer := grpc.NewServer()
+		var grpcServer *grpc.Server
+		if *tlsCertificate != "" && *tlsKey != "" {
+			creds, err := credentials.NewServerTLSFromFile(*tlsCertificate, *tlsKey)
+			if err != nil {
+				log.Fatalf("Failed to setup TLS: %v", err)
+			}
+			grpcServer = grpc.NewServer(grpc.Creds(creds))
+		} else {
+			grpcServer = grpc.NewServer()
+		}
+
+		// register the reflection service which allows clients to determine the methods
+		// for this gRPC service
+		reflection.Register(grpcServer)
+
 		fakeServer := handlers.NewFakeServer(
 			*name,
 			*message,
