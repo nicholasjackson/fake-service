@@ -13,11 +13,11 @@ import (
 type Finished func()
 
 type Generator struct {
-	coresCount int
-	percentage int
+	coresCount float64
+	percentage float64
 }
 
-func NewGenerator(cores, percentage int) *Generator {
+func NewGenerator(cores, percentage float64) *Generator {
 	return &Generator{cores, percentage}
 }
 
@@ -31,7 +31,7 @@ func (g *Generator) Generate() Finished {
 	running := true
 
 	go func() {
-		runtime.GOMAXPROCS(g.coresCount)
+		runtime.GOMAXPROCS(int(g.coresCount))
 
 		// second     ,s  * 1
 		// millisecond,ms * 1000
@@ -41,10 +41,10 @@ func (g *Generator) Generate() Finished {
 		// every loop : run + sleep = 1 unit
 
 		// 1 unit = 100 ms may be the best
-		unitHundresOfMicrosecond := 1000
+		var unitHundresOfMicrosecond float64 = 1000
 		runMicrosecond := unitHundresOfMicrosecond * g.percentage
 		sleepMicrosecond := unitHundresOfMicrosecond*100 - runMicrosecond
-		for i := 0; i < g.coresCount; i++ {
+		for i := 0; i < int(g.coresCount); i++ {
 			go func() {
 				runtime.LockOSThread()
 				// endless loop

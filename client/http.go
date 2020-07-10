@@ -1,6 +1,7 @@
 package client
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -20,10 +21,11 @@ type HTTPImpl struct {
 }
 
 // NewHTTP creates a new HTTP client
-func NewHTTP(upstreamClientKeepAlives bool, appendRequest bool, timeOut time.Duration) HTTP {
+func NewHTTP(upstreamClientKeepAlives bool, appendRequest bool, timeOut time.Duration, allowInsecure bool) HTTP {
 	client := &http.Client{
 		Transport: &http.Transport{
 			DisableKeepAlives: !upstreamClientKeepAlives,
+			TLSClientConfig:   &tls.Config{InsecureSkipVerify: allowInsecure},
 		},
 		Timeout: timeOut,
 	}

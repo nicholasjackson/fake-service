@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 )
 
 var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs of the upstream services to call")
+var upstreamAllowInsecure = env.Bool("UPSTREAM_ALLOW_INSECURE", false, false, "Allow calls to upstream servers, ignoring TLS certificate validation")
 var upstreamWorkers = env.Int("UPSTREAM_WORKERS", false, 1, "Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation")
 
 var serviceType = env.String("SERVER_TYPE", false, "http", "Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC")
@@ -60,8 +62,10 @@ var rateLimitRPS = env.Float64("RATE_LIMIT", false, 0.0, "Rate in req/second aft
 var rateLimitCode = env.Int("RATE_LIMIT_CODE", false, 503, "Code to return when service call is rate limited")
 
 // load generation
-var loadCPUCores = env.Int("LOAD_CPU_CORES", false, 0, "Number of cores to generate fake CPU load over")
-var loadCPUPercentage = env.Int("LOAD_CPU_PERCENTAGE", false, 0, "Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES")
+var loadCPUAllocated = env.Float64("LOAD_CPU_ALLOCATED", false, 0, "MHz of CPU allocated to the service, when specified, load percentage is a percentage of CPU allocated")
+var loadCPUClockSpeed = env.Float64("LOAD_CPU_CLOCK_SPEED", false, 1000, "MHz of a Single logical core, default 1000Mhz")
+var loadCPUCores = env.Float64("LOAD_CPU_CORES", false, -1, "Number of cores to generate fake CPU load over, by default fake-service will use all cores")
+var loadCPUPercentage = env.Float64("LOAD_CPU_PERCENTAGE", false, 0, "Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES. If LOAD_CPU_ALLOCATED is not specified CPU percentage is based on the Total CPU available")
 
 // metrics / tracing / logging
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
@@ -70,6 +74,10 @@ var datadogMetricsEndpoint = env.String("METRICS_DATADOG", false, "", "Location 
 var logFormat = env.String("LOG_FORMAT", false, "text", "Log file format. [text|json]")
 var logLevel = env.String("LOG_LEVEL", false, "info", "Log level for output. [info|debug|trace|warn|error]")
 var logOutput = env.String("LOG_OUTPUT", false, "stdout", "Location to write log output, default is stdout, e.g. /var/log/web.log")
+
+// TLS Certs
+var tlsCertificate = env.String("TLS_CERT_LOCATION", false, "", "Location of PEM encoded x.509 certificate for securing server")
+var tlsKey = env.String("TLS_KEY_LOCATION", false, "", "Location of PEM encoded private key for securing server")
 
 var version = "dev"
 
@@ -139,10 +147,23 @@ func main() {
 	)
 
 	// create the load generator
+	// get the total CPU amount
+	// If original CPU percent is 10, however the service has only been allocated 10% of the available CPU then percent should be 1 as it is total of avaiable
+	// Allocated Percentage = Allocated / (Max * Cores) * Percentage
+	// 100 / (1000 * 10) * 10 = 1
+
+	if *loadCPUCores == -1 {
+		*loadCPUCores = float64(runtime.NumCPU())
+	}
+
+	if *loadCPUAllocated != 0 {
+		*loadCPUPercentage = *loadCPUAllocated / (*loadCPUClockSpeed * *loadCPUCores) * *loadCPUPercentage
+	}
+
 	generator := load.NewGenerator(*loadCPUCores, *loadCPUPercentage)
 
 	// create the httpClient
-	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest, *upstreamRequestTimeout)
+	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest, *upstreamRequestTimeout, *upstreamAllowInsecure)
 
 	// build the map of gRPCClients
 	grpcClients := make(map[string]client.GRPC)
@@ -208,7 +229,13 @@ func main() {
 		logger.Log().Info("Settings CORS options", "allow_creds", *allowCredentials, "allow_headers", *allowedHeaders, "allow_origins", *allowedOrigins)
 		ch := cors.CORS(corsOptions...)
 
-		err := http.ListenAndServe(*listenAddress, ch(mux))
+		var err error
+		if *tlsCertificate != "" && *tlsKey != "" {
+			logger.Log().Info("Enabling TLS")
+			err = http.ListenAndServeTLS(*listenAddress, *tlsCertificate, *tlsKey, ch(mux))
+		} else {
+			err = http.ListenAndServe(*listenAddress, ch(mux))
+		}
 
 		if err != nil {
 			logger.Log().Error("Error starting service", "address", *listenAddress, "error", err)

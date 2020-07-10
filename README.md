@@ -57,10 +57,13 @@ Environment variables:
        Rate in req/second after which service will return an error code
   RATE_LIMIT_CODE  default: '503'
        Code to return when service call is rate limited
-  LOAD_CPU_CORES  default: '0'
-       Number of cores to generate fake CPU load over
+  LOAD_CPU_CLOCK_SPEED  default: '1000'
+       MHz of a single logical core, default 1000Mhz
+  LOAD_CPU_CORES  default: '-1'
+       Number of logical cores to generate fake CPU load over, by default fake-service will use all cores
   LOAD_CPU_PERCENTAGE  default: '0'
-       Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES
+       Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES. If LOAD_CPU_ALLOCATED 
+       is not specified CPU percentage is based on the Total CPU available
   TRACING_ZIPKIN  default: no default
        Location of Zipkin tracing collector
   TRACING_DATADOG  default: no default
@@ -73,6 +76,10 @@ Environment variables:
        Log level for output. [info|debug|trace|warn|error]
   LOG_OUTPUT  default: 'stdout'
        Location to write log output, default is stdout, e.g. /var/log/web.log
+  TLS_CERT_LOCATION  default: no default
+       Location of PEM encoded x.509 certificate for securing server
+  TLS_KEY_LOCATION  default: no default
+       Location of PEM encoded private key for securing server
 ```
 
 ## Tracing
