@@ -4,13 +4,9 @@ import './Chart.js'
 import Timeline from './Chart.js';
 
 import Navbar from 'react-bootstrap/Navbar';
-import Nav from 'react-bootstrap/Nav';
 import FormControl from 'react-bootstrap/FormControl';
+import Form from 'react-bootstrap/Form';
 import Button from 'react-bootstrap/Button';
-
-import Container from 'react-bootstrap/Container'
-import Row from 'react-bootstrap/Row'
-import Col from 'react-bootstrap/Col'
 
 class App extends React.Component {
 
@@ -59,20 +55,12 @@ class App extends React.Component {
   render() {
     return (
       <div className="App">
-        <Navbar bg="primary" variant="dark" fixed="top">
+        <Navbar bg="dark" variant="dark" fixed="top">
           <Navbar.Brand><h1>Fake Service</h1></Navbar.Brand>
-          <Nav className="mr-auto">
-            <Container>
-              <Row>
-                <Col lg={true}>
-                  <FormControl type="text" placeholder="/" style={{ width: 600 }} onChange={this.pathChanged} />
-                </Col>
-                <Col lg={true}>
-                  <Button variant="outline-light" onClick={this.goClick}>Go</Button>
-                </Col>
-              </Row>
-            </Container>
-          </Nav>
+          <Form inline>
+            <FormControl style={{width:"600px"}} type="text" placeholder="/" className="mr-sm-4" onChange={this.pathChanged}/>
+            <Button variant="outline-light" onClick={this.goClick}>Go</Button>
+          </Form>
         </Navbar>
         <Timeline url={this.state.url} refresh={this.state.refresh} />
       </div>
