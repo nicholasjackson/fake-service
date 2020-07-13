@@ -16,6 +16,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: yarn cache dir
+        id: yarn-cache-dir
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v2
+        with:
+          path: ${{ steps.yarn-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
       - name: Build ui
         run: make build_ui
       - name: Prepare
@@ -47,9 +56,19 @@ jobs:
             ${TAGS} --file ./.docker/Dockerfile-BuildCI ./
       - name: Set up Docker Buildx
         uses: crazy-max/ghaction-docker-buildx@v3
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
       - name: Docker Buildx (build)
         run: |
-          docker buildx build --output "type=image,push=false" ${{ steps.prepare.outputs.buildx_args }}
+          docker buildx build \
+            --cache-from "type=local,src=/tmp/.buildx-cache" \
+            --cache-to "type=local,dest=/tmp/.buildx-cache" \
+            --output "type=image,push=false" ${{ steps.prepare.outputs.buildx_args }}
       - name: Docker Login - Docker Prime
         if: success() && github.event_name != 'pull_request'
         env:
@@ -60,7 +79,9 @@ jobs:
       - name: Docker Buildx (push) - Docker Prime
         if: success() && github.event_name != 'pull_request'
         run: |
-          docker buildx build --output "type=image,push=true" ${{ steps.prepare.outputs.buildx_args }}
+          docker buildx build \
+            --cache-from "type=local,src=/tmp/.buildx-cache" \
+            --output "type=image,push=true" ${{ steps.prepare.outputs.buildx_args }}
       - name: Docker Check Manifest
         if: always() && github.event_name != 'pull_request'
         run: |
