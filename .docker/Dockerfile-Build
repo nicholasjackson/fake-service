@@ -23,8 +23,8 @@ WORKDIR /build
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GDOS=linux \
-    GOPATH=/go
-ENV PATH=${PATH}:/usr/local/go/bin:/go/bin
+    GOPATH=/go \
+    PATH=${PATH}:/usr/local/go/bin:/go/bin
 RUN if [ "$(uname -m)" =  "x86_64" ]; then \
         GOARCH='amd64'; \
     elif [ "$(uname -m)" =  "aarch64" ]; then \
