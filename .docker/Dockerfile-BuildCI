@@ -19,6 +19,7 @@ RUN if [ "$(uname -m)" =  "x86_64" ]; then \
     fi
 RUN apk add git=2.26.2-r0 && \
     GO111MODULE=off go get -u github.com/gobuffalo/packr/v2/packr2 && \
+    go test -v ./... && \
     packr2 && \
     go build -o bin/fake-service-linux
 
