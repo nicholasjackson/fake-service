@@ -8,11 +8,10 @@ ENV CI=true \
     REACT_APP_API_URI=/ \
     PUBLIC_URL=/ui 
 
-RUN apk add yarn=1.22.4-r0 && \
-    yarn cache clean && \
-    yarn install --network-timeout 100000 && \
-    yarn test && \
-    yarn build
+RUN apk add npm=12.17.0-r0 && \
+    npm install && \
+    npm test && \
+    npm build
 
 FROM alpine:3.12 as build_app
 
