@@ -24,7 +24,6 @@ WORKDIR /build
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GDOS=linux \
-    GOARCH=amd64 \
     GOPATH=/go
 ENV PATH=${PATH}:/usr/local/go/bin:/go/bin
 RUN if [ "$(uname -m)" =  "x86_64" ]; then \
@@ -36,7 +35,6 @@ RUN if [ "$(uname -m)" =  "x86_64" ]; then \
     fi
 RUN apk add git=2.26.2-r0 && \
     GO111MODULE=off go get -u github.com/gobuffalo/packr/v2/packr2 && \
-    go test -v ./... && \
     packr2 && \
     go build -o bin/fake-service-linux
 
