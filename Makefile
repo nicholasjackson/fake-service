@@ -5,7 +5,7 @@ protos:
 
 # Requires Yarn and Node
 build_ui:
-	cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+	cd ui && yarn && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
 
 # Requires Packr to bundle assets
 build_linux: build_ui
@@ -25,6 +25,9 @@ build_local: build_ui
 
 build_docker:
 	docker build -t trailmix/fake-service:${version} -f ./.docker/Dockerfile-Build .
+
+build_docker_ci: build_ui
+	docker build -t trailmix/fake-service:${version} -f ./.docker/Dockerfile-BuildCI .
 
 run_downstream:
 	TRACING_ZIPKIN=/dev/null NAME=web HTTP_CLIENT_KEEP_ALIVES=false UPSTREAM_WORKERS=2 UPSTREAM_URIS="http://localhost:9091,grpc://localhost:9094" go run main.go

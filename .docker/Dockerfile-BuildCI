@@ -1,23 +1,8 @@
-FROM alpine:3.12 as build_ui
-
-RUN mkdir build
-COPY ./ /build
-WORKDIR /build/ui
-
-ENV CI=true \
-    REACT_APP_API_URI=/ \
-    PUBLIC_URL=/ui 
-
-RUN apk add yarn=1.22.4-r0 && \
-    yarn && \
-    yarn test && \
-    yarn build
-
 FROM alpine:3.12 as build_app
 
 RUN mkdir -p build go/bin go/src
 COPY --from=golang:1.12-alpine3.11 /usr/local/go /usr/local/go
-COPY --from=build_ui /build /build
+COPY ./ /build
 WORKDIR /build
 
 ENV GO111MODULE=on \
