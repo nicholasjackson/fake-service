@@ -9,7 +9,8 @@ ENV CI=true \
     PUBLIC_URL=/ui 
 
 RUN apk add yarn=1.22.4-r0 && \
-    yarn install && \
+    yarn cache clean && \
+    yarn install --network-timeout 100000 && \
     yarn test && \
     yarn build
 
