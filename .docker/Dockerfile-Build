@@ -1,0 +1,47 @@
+FROM alpine:3.12 as build_ui
+
+RUN mkdir build
+COPY ./ /build
+WORKDIR /build/ui
+
+ENV CI=true \
+    REACT_APP_API_URI=/ \
+    PUBLIC_URL=/ui 
+
+RUN apk add yarn=1.22.4-r0 && \
+    yarn install && \
+    yarn test && \
+    yarn build
+
+FROM alpine:3.12 as build_app
+
+RUN mkdir -p build go/bin go/src
+COPY --from=golang:1.12-alpine3.11 /usr/local/go /usr/local/go
+COPY --from=build_ui /build /build
+WORKDIR /build
+
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GDOS=linux \
+    GOARCH=amd64 \
+    GOPATH=/go
+ENV PATH=${PATH}:/usr/local/go/bin:/go/bin
+RUN if [ "$(uname -m)" =  "x86_64" ]; then \
+        GOARCH='amd64'; \
+    elif [ "$(uname -m)" =  "aarch64" ]; then \
+        GOARCH='arm64'; \
+    else \
+        GOARCH='arm'; \
+    fi
+RUN apk add git=2.26.2-r0 && \
+    GO111MODULE=off go get -u github.com/gobuffalo/packr/v2/packr2 && \
+    go test -v ./... && \
+    packr2 && \
+    go build -o bin/fake-service-linux
+
+FROM alpine:3.12 as release
+
+RUN mkdir app
+COPY --from=build_app /build/bin/fake-service-linux /app/fake-service
+
+ENTRYPOINT ["/app/fake-service"]

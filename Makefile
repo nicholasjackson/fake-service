@@ -23,9 +23,8 @@ build_local: build_ui
 	go build -o bin/fake-service
 	packr2 clean
 
-build_docker: build_linux
-	docker build -t nicholasjackson/fake-service:${version} .
-	docker build -t nicholasjackson/fake-service:vm-${version} -f Dockerfile-VM .
+build_docker:
+	docker build -t trailmix/fake-service:${version} -f ./.docker/Dockerfile-Build .
 
 run_downstream:
 	TRACING_ZIPKIN=/dev/null NAME=web HTTP_CLIENT_KEEP_ALIVES=false UPSTREAM_WORKERS=2 UPSTREAM_URIS="http://localhost:9091,grpc://localhost:9094" go run main.go
