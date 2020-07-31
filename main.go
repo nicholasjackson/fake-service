@@ -25,6 +25,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -252,16 +253,22 @@ func main() {
 			os.Exit(1)
 		}
 
-		var grpcServer *grpc.Server
+		serverOptions := []grpc.ServerOption{}
+
+		// disable keep alives
+		if !*upstreamClientKeepAlives {
+			serverOptions = append(serverOptions, grpc.KeepaliveParams(keepalive.ServerParameters{MaxConnectionAge: 5 * time.Second}))
+		}
+
 		if *tlsCertificate != "" && *tlsKey != "" {
 			creds, err := credentials.NewServerTLSFromFile(*tlsCertificate, *tlsKey)
 			if err != nil {
 				log.Fatalf("Failed to setup TLS: %v", err)
 			}
-			grpcServer = grpc.NewServer(grpc.Creds(creds))
-		} else {
-			grpcServer = grpc.NewServer()
+			serverOptions = append(serverOptions, grpc.Creds(creds))
 		}
+
+		grpcServer := grpc.NewServer(serverOptions...)
 
 		// register the reflection service which allows clients to determine the methods
 		// for this gRPC service

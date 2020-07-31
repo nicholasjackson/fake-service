@@ -9,6 +9,7 @@ RUN sed -i 's/\/bin\/ash/\/bin\/bash/g' /etc/passwd
 RUN mkdir -p /etc/supervisor.d/
 
 COPY entrypoint.sh /entrypoint.sh
+COPY prestart.sh /prestart.sh
 
 # Setup the supervisor d file
 COPY fake-service.ini /etc/supervisor.d/fake-service.ini
@@ -28,6 +29,7 @@ ENV CONSUL_SERVER=localhost
 ENV CONSUL_DATACENTER=dc1
 ENV SERVICE_ID=null
 ENV CONSUL_RETRY_INTERVAL=5s 
+ENV PRESTART_FILE=/prestart.sh
 
 # add default config folder
 RUN mkdir /config
