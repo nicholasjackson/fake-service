@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+	//"net/http/pprof"
 )
 
 var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs of the upstream services to call")
@@ -211,9 +212,20 @@ func main() {
 		for _, f := range box.List() {
 			logger.Log().Info("File", "path", f)
 		}
+
+		// Add the User interface handler
 		mux.Handle("/ui/", http.StripPrefix("/ui", http.FileServer(box)))
 
+		// Add the generic health handler
 		mux.HandleFunc("/health", hq.Handle)
+
+		// uncomment to enable pprof
+		//mux.HandleFunc("/debug/pprof/", pprof.Index)
+		//mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		//mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		//mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		//mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
 		mux.HandleFunc("/", rq.Handle)
 
 		// CORS

@@ -38,6 +38,7 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 			// this could be because the proxy is returning an error not the
 			// upstream
 			// in this instance create a blank response with the error
+			l.Log().Error("Unable to read response JSON", "error", jsonerr)
 		}
 	}
 

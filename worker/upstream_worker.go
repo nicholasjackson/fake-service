@@ -58,12 +58,16 @@ func (u *UpstreamWorker) Do(uris []string) error {
 		}
 	}()
 
+	var err error
 	select {
-	case err := <-u.errChan:
-		return err
+	case err = <-u.errChan:
 	case <-u.doneChan:
-		return nil
 	}
+
+	// close the work channel to ensure the worker does
+	// not leak goroutines
+	close(u.workChan)
+	return err
 }
 
 // Responses returns the responses from the upstream calls
@@ -81,9 +85,14 @@ func (u *UpstreamWorker) monitorStatus() {
 
 func (u *UpstreamWorker) worker() {
 	for {
-		uri := <-u.workChan
-		resp, err := u.workFunc(uri)
+		uri, ok := <-u.workChan
 
+		// all work is complete exit
+		if !ok {
+			break
+		}
+
+		resp, err := u.workFunc(uri)
 		u.responses = append(u.responses, Done{uri, resp})
 
 		if err != nil {
