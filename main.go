@@ -45,7 +45,7 @@ var allowedHeaders = env.String("ALLOWED_HEADERS", false, "Accept,Accept-Languag
 var allowCredentials = env.Bool("ALLOW_CREDENTIALS", false, false, "Are credentials allowed for CORS requests")
 
 // Upstream client configuration
-var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, false, "Enable HTTP connection keep alives for upstream calls")
+var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, false, "Enable HTTP connection keep alives for upstream calls, also enables the HTTP servers handling of keep alives.")
 var upstreamAppendRequest = env.Bool("HTTP_CLIENT_APPEND_REQUEST", false, true, "When true the path, querystring, and any headers sent to the service will be appended to any upstream calls")
 var upstreamRequestTimeout = env.Duration("HTTP_CLIENT_REQUEST_TIMEOUT", false, 30*time.Second, "Max time to wait before timeout for upstream requests, default 30s")
 
@@ -246,11 +246,14 @@ func main() {
 		ch := cors.CORS(corsOptions...)
 
 		var err error
+		server := &http.Server{Addr: *listenAddress, Handler: ch(mux)}
+		server.SetKeepAlivesEnabled(*upstreamClientKeepAlives)
+
 		if *tlsCertificate != "" && *tlsKey != "" {
 			logger.Log().Info("Enabling TLS")
-			err = http.ListenAndServeTLS(*listenAddress, *tlsCertificate, *tlsKey, ch(mux))
+			err = server.ListenAndServeTLS(*tlsCertificate, *tlsKey)
 		} else {
-			err = http.ListenAndServe(*listenAddress, ch(mux))
+			err = server.ListenAndServe()
 		}
 
 		if err != nil {
