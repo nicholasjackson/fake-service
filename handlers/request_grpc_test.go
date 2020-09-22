@@ -142,7 +142,7 @@ func TestGRPCServiceHandlesRequestWithGRPCUpstream(t *testing.T) {
 	fs, _, gc := setupFakeServer(t, uris, 0)
 
 	gcMock := gc["grpc://test.com"].(*client.MockGRPC)
-	gcMock.On("Handle", mock.Anything, mock.Anything).Return(&api.Response{Message: `{"name": "upstream", "body": "OK"}`}, nil)
+	gcMock.On("Handle", mock.Anything, mock.Anything).Return(&api.Response{Message: `{"name": "upstream", "body": "OK"}`}, map[string]string{"test": "abc"}, nil)
 
 	resp, err := fs.Handle(context.Background(), nil)
 	mr := response.Response{}
@@ -160,4 +160,5 @@ func TestGRPCServiceHandlesRequestWithGRPCUpstream(t *testing.T) {
 	assert.Len(t, mr.UpstreamCalls, 1)
 	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
 	assert.Equal(t, "grpc://test.com", mr.UpstreamCalls[0].URI)
+	assert.Equal(t, "abc", mr.UpstreamCalls[0].Headers["test"])
 }

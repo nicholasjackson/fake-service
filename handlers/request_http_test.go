@@ -197,7 +197,7 @@ func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 
 	// setup the upstream response
 	gcMock := gc["grpc://test.com"].(*client.MockGRPC)
-	gcMock.On("Handle", mock.Anything, mock.Anything).Return(&api.Response{Message: `{"name": "upstream", "body": "OK"}`}, nil)
+	gcMock.On("Handle", mock.Anything, mock.Anything).Return(&api.Response{Message: `{"name": "upstream", "body": "OK"}`}, map[string]string{"test": "abc"}, nil)
 
 	h.Handle(rr, r)
 	mr := response.Response{}
@@ -214,6 +214,7 @@ func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 	assert.Len(t, mr.UpstreamCalls, 1)
 	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
 	assert.Equal(t, "grpc://test.com", mr.UpstreamCalls[0].URI)
+	assert.Equal(t, "abc", mr.UpstreamCalls[0].Headers["test"])
 }
 
 func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {
@@ -223,7 +224,7 @@ func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {
 
 	// setup the upstream response
 	gcMock := gc["grpc://something.com"].(*client.MockGRPC)
-	gcMock.On("Handle", mock.Anything, mock.Anything).Return(nil, status.Error(codes.Internal, "Boom"))
+	gcMock.On("Handle", mock.Anything, mock.Anything).Return(nil, map[string]string{}, status.Error(codes.Internal, "Boom"))
 
 	h.Handle(rr, r)
 	mr := response.Response{}

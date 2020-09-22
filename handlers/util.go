@@ -60,7 +60,7 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 	defer hr.Finished()
 
 	c := grpcClients[uri]
-	resp, err := c.Handle(outCtx, &api.Nil{})
+	resp, headers, err := c.Handle(outCtx, &api.Nil{})
 
 	r := &response.Response{}
 	if err != nil {
@@ -79,7 +79,6 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 				}
 			}
 		}
-
 	}
 
 	if resp != nil {
@@ -89,12 +88,14 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 			// this could be because the proxy is returning an error not the
 			// upstream
 			// in this instance create a blank response with the error
+			l.Log().Error("Unable to read response JSON", "error", jsonerr)
 		}
 	}
 
 	// set the local URI for the upstream
 	r.URI = uri
 	r.Type = "gRPC"
+	r.Headers = headers
 
 	if err != nil {
 		r.Error = err.Error()

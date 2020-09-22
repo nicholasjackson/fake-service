@@ -13,12 +13,12 @@ type MockGRPC struct {
 }
 
 // Handle calls the upstream client
-func (m *MockGRPC) Handle(ctx context.Context, n *api.Nil) (*api.Response, error) {
+func (m *MockGRPC) Handle(ctx context.Context, n *api.Nil) (*api.Response, map[string]string, error) {
 	args := m.Called(ctx, n)
 
 	if a := args.Get(0); a != nil {
-		return a.(*api.Response), nil
+		return a.(*api.Response), args.Get(1).(map[string]string), nil
 	}
 
-	return nil, args.Error(1)
+	return nil, args.Get(1).(map[string]string), args.Error(2)
 }

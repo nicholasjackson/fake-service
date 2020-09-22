@@ -59,8 +59,10 @@ func (h *HTTPImpl) Do(r *http.Request, pr *http.Request) (int, []byte, map[strin
 		return resp.StatusCode, nil, nil, nil, fmt.Errorf("Error reading response body: %d", err)
 	}
 
+	var statusError error
 	if resp.StatusCode != http.StatusOK {
-		return resp.StatusCode, data, nil, nil, fmt.Errorf("Error processing upstream request: %s", r.URL.String())
+		// if a request err
+		statusError = fmt.Errorf("Error processing upstream request: %s, expected code 200, got %d", r.URL.String(), resp.StatusCode)
 	}
 
 	headers := map[string]string{}
@@ -73,7 +75,7 @@ func (h *HTTPImpl) Do(r *http.Request, pr *http.Request) (int, []byte, map[strin
 		cookies[c.Name] = c.Value
 	}
 
-	return resp.StatusCode, data, headers, cookies, nil
+	return resp.StatusCode, data, headers, cookies, statusError
 }
 
 // appendHeaders from the original request
