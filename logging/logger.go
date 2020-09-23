@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptrace"
 	"strings"
 	"time"
 
@@ -269,6 +270,24 @@ func (l *Logger) CallHTTPUpstream(parentRequest *http.Request, upstreamRequest *
 		clientSpan.Context(),
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(upstreamRequest.Header))
+
+	// add tracing to the http request to log connection instantiation, etc
+	trace := &httptrace.ClientTrace{
+		GotConn: func(connInfo httptrace.GotConnInfo) {
+			l.log.Debug("Got connection for upstream request", "idle", connInfo.WasIdle, "reused", connInfo.Reused)
+
+			if !connInfo.WasIdle {
+				l.metrics.Increment("upstream.request.http.connection.created", nil)
+			} else {
+				l.metrics.Increment("upstream.request.http.connection.reused", nil)
+			}
+		},
+		PutIdleConn: func(err error) {
+			l.log.Debug("Returned connection to pool", "error", err)
+		},
+	}
+
+	*upstreamRequest = *upstreamRequest.WithContext(httptrace.WithClientTrace(upstreamRequest.Context(), trace))
 
 	l.log.Info(
 		"Calling upstream service",
