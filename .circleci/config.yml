@@ -22,7 +22,7 @@ jobs:
 
   build-go:
     docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.15.2
     environment:
       GO111MODULE: "on"
     working_directory: /go/src/github.com/nicholasjackson/fake-service
@@ -54,7 +54,7 @@ jobs:
   
   release:
     docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.15.2
     environment:
       GO111MODULE: "on"
     working_directory: /go/src/github.com/nicholasjackson/fake-service
