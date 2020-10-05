@@ -41,8 +41,6 @@ func New(workerCount int, f WorkFunc) *UpstreamWorker {
 
 // Do runs the worker with the given uris
 func (u *UpstreamWorker) Do(uris []string) error {
-	finished := false
-
 	// start the workers
 	for n := 0; n < u.workerCount; n++ {
 		go u.worker()
@@ -56,24 +54,30 @@ func (u *UpstreamWorker) Do(uris []string) error {
 	// start the work
 	go func() {
 		for _, uri := range uris {
-			if finished {
-				return
-			}
 			u.workChan <- uri
 		}
+
+		// close the work channel
+		close(u.workChan)
 	}()
 
 	var err error
 	select {
 	case err = <-u.errChan:
+		// drain the work channel to ensure the worker does
+		// not leak goroutines
+		for {
+			<-u.workChan
+			_, ok := <-u.workChan
+			if !ok {
+				break
+			}
+		}
+		return err
 	case <-u.doneChan:
+		return nil
 	}
 
-	// close the work channel to ensure the worker does
-	// not leak goroutines
-	finished = true
-	close(u.workChan)
-	return err
 }
 
 // Responses returns the responses from the upstream calls

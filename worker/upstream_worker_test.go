@@ -38,6 +38,7 @@ func TestUpstreamWorkerWithTwoURIAndSingleWorkerFirstFail(t *testing.T) {
 	callCount := 0
 	w := New(1, func(uri string) (*response.Response, error) {
 		callCount++
+		time.Sleep(10 * time.Millisecond)
 
 		return &response.Response{}, fmt.Errorf("Boom")
 	})
