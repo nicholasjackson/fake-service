@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -74,8 +75,10 @@ var loadCPUPercentage = env.Float64("LOAD_CPU_PERCENTAGE", false, 0, "Percentage
 
 // metrics / tracing / logging
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
-var datadogTracingEndpoint = env.String("TRACING_DATADOG", false, "", "Location of Datadog tracing collector")
-var datadogMetricsEndpoint = env.String("METRICS_DATADOG", false, "", "Location of Datadog metrics collector")
+var datadogTracingEndpointHost = env.String("TRACING_DATADOG_HOST", false, "", "Hostname or IP for Datadog tracing collector")
+var datadogTracingEndpointPort = env.String("TRACING_DATADOG_PORT", false, "8126", "Port for Datadog tracing collector")
+var datadogMetricsEndpointHost = env.String("METRICS_DATADOG_HOST", false, "", "Hostname or IP for Datadog metrics collector")
+var datadogMetricsEndpointPort = env.String("METRICS_DATADOG_PORT", false, "8125", "Port for Datadog metrics collector")
 var logFormat = env.String("LOG_FORMAT", false, "text", "Log file format. [text|json]")
 var logLevel = env.String("LOG_LEVEL", false, "info", "Log level for output. [info|debug|trace|warn|error]")
 var logOutput = env.String("LOG_OUTPUT", false, "stdout", "Location to write log output, default is stdout, e.g. /var/log/web.log")
@@ -97,16 +100,18 @@ func main() {
 		sdf = tracing.GetZipkinSpanDetails
 	}
 
-	if *datadogTracingEndpoint != "" {
-		tracing.NewDataDogClient(*datadogTracingEndpoint, *name)
+	if *datadogTracingEndpointHost != "" {
+		hostname := fmt.Sprintf("%s:%s", *datadogTracingEndpointHost, *datadogTracingEndpointPort)
+		tracing.NewDataDogClient(hostname, *name)
 		sdf = tracing.GetDataDogSpanDetails
 	}
 
 	// do we need to setup metrics
 	var metrics logging.Metrics = &logging.NullMetrics{}
 
-	if *datadogMetricsEndpoint != "" {
-		metrics = logging.NewStatsDMetrics(*name, "production", *datadogMetricsEndpoint)
+	if *datadogMetricsEndpointHost != "" {
+		hostname := fmt.Sprintf("%s:%s", *datadogMetricsEndpointHost, *datadogMetricsEndpointPort)
+		metrics = logging.NewStatsDMetrics(*name, "production", hostname)
 	}
 
 	lo := hclog.DefaultOptions

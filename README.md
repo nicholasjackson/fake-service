@@ -66,10 +66,14 @@ Environment variables:
        is not specified CPU percentage is based on the Total CPU available
   TRACING_ZIPKIN  default: no default
        Location of Zipkin tracing collector
-  TRACING_DATADOG  default: no default
-       Location of Datadog tracing collector
-  METRICS_DATADOG  default: no default
-       Location of Datadog metrics collector
+  TRACING_DATADOG_HOST  default: no default
+       Hostname or IP for Datadog tracing collector
+  TRACING_DATADOG_PORT  default: '8126'
+       Port for Datadog tracing collector
+  METRICS_DATADOG_HOST  default: no default
+       Hostname or IP for Datadog metrics collector
+  METRICS_DATADOG_PORT  default: '8125'
+       Port for Datadog metrics collector
   LOG_FORMAT  default: 'text'
        Log file format. [text|json]
   LOG_LEVEL  default: 'info'
