@@ -42,6 +42,7 @@ func New(workerCount int, f WorkFunc) *UpstreamWorker {
 // Do runs the worker with the given uris
 func (u *UpstreamWorker) Do(uris []string) error {
 	finished := false
+
 	// start the workers
 	for n := 0; n < u.workerCount; n++ {
 		go u.worker()
@@ -58,7 +59,6 @@ func (u *UpstreamWorker) Do(uris []string) error {
 			if finished {
 				return
 			}
-
 			u.workChan <- uri
 		}
 	}()

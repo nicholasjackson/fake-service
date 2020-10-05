@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -33,6 +34,18 @@ func TestUpstreamWorkerWithTwoURIAndSingleWorker(t *testing.T) {
 
 	assert.Equal(t, 2, callCount)
 }
+func TestUpstreamWorkerWithTwoURIAndSingleWorkerFirstFail(t *testing.T) {
+	callCount := 0
+	w := New(1, func(uri string) (*response.Response, error) {
+		callCount++
+
+		return &response.Response{}, fmt.Errorf("Boom")
+	})
+
+	w.Do([]string{"123", "abc"})
+
+	assert.Equal(t, 1, callCount)
+}
 
 func TestUpstreamWorkerWithTwoURIAndTwoWorkers(t *testing.T) {
 	startOrder := []string{}
@@ -55,4 +68,17 @@ func TestUpstreamWorkerWithTwoURIAndTwoWorkers(t *testing.T) {
 	// if parallel first finished should not be equal to first started due to
 	// sleepTimes
 	assert.NotEqual(t, startOrder[0], calls[0])
+}
+
+func TestUpstreamWorkerWithTwoURIAndTwoWorkerFirstFail(t *testing.T) {
+	callCount := 0
+	w := New(2, func(uri string) (*response.Response, error) {
+		callCount++
+
+		return &response.Response{}, fmt.Errorf("Boom")
+	})
+
+	w.Do([]string{"123", "abc"})
+
+	assert.Equal(t, 1, callCount)
 }
