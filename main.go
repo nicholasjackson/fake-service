@@ -79,6 +79,7 @@ var datadogTracingEndpointHost = env.String("TRACING_DATADOG_HOST", false, "", "
 var datadogTracingEndpointPort = env.String("TRACING_DATADOG_PORT", false, "8126", "Port for Datadog tracing collector")
 var datadogMetricsEndpointHost = env.String("METRICS_DATADOG_HOST", false, "", "Hostname or IP for Datadog metrics collector")
 var datadogMetricsEndpointPort = env.String("METRICS_DATADOG_PORT", false, "8125", "Port for Datadog metrics collector")
+var datadogMetricsEnvironment  = env.String("METRICS_DATADOG_ENVIRONMENT", false, "production", "Environment tag for Datadog metrics collector")
 var logFormat = env.String("LOG_FORMAT", false, "text", "Log file format. [text|json]")
 var logLevel = env.String("LOG_LEVEL", false, "info", "Log level for output. [info|debug|trace|warn|error]")
 var logOutput = env.String("LOG_OUTPUT", false, "stdout", "Location to write log output, default is stdout, e.g. /var/log/web.log")
@@ -111,7 +112,7 @@ func main() {
 
 	if *datadogMetricsEndpointHost != "" {
 		hostname := fmt.Sprintf("%s:%s", *datadogMetricsEndpointHost, *datadogMetricsEndpointPort)
-		metrics = logging.NewStatsDMetrics(*name, "production", hostname)
+		metrics = logging.NewStatsDMetrics(*name, *datadogMetricsEnvironment, hostname)
 	}
 
 	lo := hclog.DefaultOptions
