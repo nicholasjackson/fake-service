@@ -23,28 +23,38 @@ const NodeInnerCustom = ({ node, children, ...otherProps }) => {
   }
 
   return (
-    <Container {...otherProps} className={className} key="sdfsdf">
+    <Container {...otherProps} className={className} key={node.properties.name}>
       <Row>
         <Col className="node-header">{node.properties.name}</Col>
       </Row>
       <Row>
-        <Col className="node-uri">{node.properties.uri}</Col>
+        <Col className="node-uri">{node.properties.upstream_address}</Col>
       </Row>
       <Row>
-        <Col className="node-key">IP Address</Col>
-          <Col className="node-value">{ips}</Col>
+        <Col>
+    <Container>
+      <Row>
+        <Col className="node-key" md={5}>Request URI</Col>
+        <Col className="node-value" md={1}>{node.properties.uri}</Col>
       </Row>
       <Row>
-        <Col className="node-key">Duration</Col>
-        <Col className="node-value">{node.properties.duration}</Col>
+        <Col className="node-key" md={5}>IP Address</Col>
+        <Col className="node-value" md={1}>{ips}</Col>
       </Row>
       <Row>
-        <Col className="node-key">Type</Col>
-        <Col className="node-value">{node.properties.type}</Col>
+        <Col className="node-key" md={5}>Duration</Col>
+        <Col className="node-value" md={1}>{node.properties.duration}</Col>
       </Row>
       <Row>
-        <Col className="node-key">Response</Col>
-        <Col className="node-value">{node.properties.response}</Col>
+        <Col className="node-key" md={5}>Type</Col>
+        <Col className="node-value" md={1}>{node.properties.type}</Col>
+      </Row>
+      <Row>
+        <Col className="node-key" md={5}>Response</Col>
+        <Col className="node-value" md={1}>{node.properties.response}</Col>
+      </Row>
+    </Container>
+        </Col>
       </Row>
     </Container>
   )

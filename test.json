@@ -1,0 +1,54 @@
+{
+  "name": "DESKTOP-AML9KE1",
+  "uri": "/",
+  "type": "HTTP",
+  "ip_addresses": [
+    "172.31.69.151"
+  ],
+  "start_time": "2020-10-27T08:17:24.401602",
+  "end_time": "2020-10-27T08:17:24.403448",
+  "duration": "1.8466ms",
+  "body": "Hello World",
+  "upstream_calls": {
+    "http://localhost:9090/abc":
+    {
+      "name": "DESKTOP-AML9KE1",
+      "uri": "http://localhost:9090/v2/abc",
+      "type": "HTTP",
+      "ip_addresses": [
+        "172.31.69.151"
+      ],
+      "start_time": "2020-10-27T08:17:24.402626",
+      "end_time": "2020-10-27T08:17:24.402701",
+      "duration": "75.1µs",
+      "headers": {
+        "Content-Length": "264",
+        "Content-Type": "text/plain; charset=utf-8",
+        "Date": "Tue, 27 Oct 2020 08:17:24 GMT"
+      },
+      "body": "Hello World",
+      "code": 200
+    },
+    "http://localhost:9090/abc":
+    {
+      "name": "DESKTOP-AML9KE1",
+      "uri": "http://localhost:9090/v2/abc",
+      "type": "HTTP",
+      "ip_addresses": [
+        "172.31.69.151"
+      ],
+      "start_time": "2020-10-27T08:17:24.402626",
+      "end_time": "2020-10-27T08:17:24.402701",
+      "duration": "75.1µs",
+      "headers": {
+        "Content-Length": "264",
+        "Content-Type": "text/plain; charset=utf-8",
+        "Date": "Tue, 27 Oct 2020 08:17:24 GMT"
+      },
+      "body": "Hello World",
+      "code": 200
+    }
+  },
+  "code": 200
+}
+

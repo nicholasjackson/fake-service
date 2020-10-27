@@ -18,7 +18,7 @@ code {
   font-family: sans-serif;
   text-align: center;
   color: black;
-  min-width: 260px;
+  min-width: 340px;
 }
 
 .node-error {
@@ -43,7 +43,7 @@ code {
   text-align: left;
 }
 
-.node-value {
+.node-value.col {
   font-size: 16px;
   text-align: left;
 }

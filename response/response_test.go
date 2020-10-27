@@ -11,7 +11,7 @@ func TestConvertsFromJSON(t *testing.T) {
    {
 	   "name": "Test App",
 		 "uri": "http://something.com",
-		 "upstream_calls": [ {"name": "upstream"}]
+		 "upstream_calls": {"abc": {"name": "upstream"}}
 	 }
 	`
 
@@ -21,5 +21,5 @@ func TestConvertsFromJSON(t *testing.T) {
 	assert.Equal(t, "Test App", r.Name)
 	assert.Equal(t, "http://something.com", r.URI)
 	assert.Len(t, r.UpstreamCalls, 1)
-	assert.Equal(t, "upstream", r.UpstreamCalls[0].Name)
+	assert.Equal(t, "upstream", r.UpstreamCalls["abc"].Name)
 }

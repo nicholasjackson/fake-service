@@ -117,7 +117,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, v := range wp.Responses() {
-			resp.AppendUpstream(v.Response)
+			resp.AppendUpstream(v.URI, *v.Response)
 		}
 	}
 

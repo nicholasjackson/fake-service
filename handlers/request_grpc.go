@@ -111,7 +111,7 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		}
 
 		for _, v := range wp.Responses() {
-			resp.AppendUpstream(v.Response)
+			resp.AppendUpstream(v.URI, *v.Response)
 		}
 	}
 

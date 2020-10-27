@@ -144,8 +144,8 @@ func TestRequestCompletesWithHTTPUpstreams(t *testing.T) {
 	assert.Equal(t, "\"hello world\"", string(d))
 
 	assert.Len(t, mr.UpstreamCalls, 1)
-	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
-	assert.Equal(t, "http://test.com", mr.UpstreamCalls[0].URI)
+	assert.Equal(t, "upstream", mr.UpstreamCalls["http://test.com"].Name)
+	assert.Equal(t, "http://test.com", mr.UpstreamCalls["http://test.com"].URI)
 }
 
 func TestReturnsErrorWithHTTPUpstreamConnectionError(t *testing.T) {
@@ -165,9 +165,8 @@ func TestReturnsErrorWithHTTPUpstreamConnectionError(t *testing.T) {
 
 	assert.Equal(t, "test", mr.Name)
 	assert.Len(t, mr.UpstreamCalls, 1)
-	assert.Equal(t, -1, mr.UpstreamCalls[0].Code)
+	assert.Equal(t, -1, mr.UpstreamCalls["http://something.com"].Code)
 
-	//pretty.Print(mr)
 }
 
 func TestReturnsErrorWithHTTPUpstreamHandleError(t *testing.T) {
@@ -187,7 +186,7 @@ func TestReturnsErrorWithHTTPUpstreamHandleError(t *testing.T) {
 	assert.Equal(t, "test", mr.Name)
 	assert.Equal(t, http.StatusInternalServerError, mr.Code)
 	assert.Len(t, mr.UpstreamCalls, 1)
-	assert.Equal(t, http.StatusInternalServerError, mr.UpstreamCalls[0].Code)
+	assert.Equal(t, http.StatusInternalServerError, mr.UpstreamCalls["http://something.com"].Code)
 }
 
 func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
@@ -212,9 +211,9 @@ func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 	assert.Equal(t, "\"hello world\"", string(d))
 
 	assert.Len(t, mr.UpstreamCalls, 1)
-	assert.Equal(t, "upstream", mr.UpstreamCalls[0].Name)
-	assert.Equal(t, "grpc://test.com", mr.UpstreamCalls[0].URI)
-	assert.Equal(t, "abc", mr.UpstreamCalls[0].Headers["test"])
+	assert.Equal(t, "upstream", mr.UpstreamCalls["grpc://test.com"].Name)
+	assert.Equal(t, "grpc://test.com", mr.UpstreamCalls["grpc://test.com"].URI)
+	assert.Equal(t, "abc", mr.UpstreamCalls["grpc://test.com"].Headers["test"])
 }
 
 func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {
