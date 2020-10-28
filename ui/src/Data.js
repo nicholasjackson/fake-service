@@ -7,8 +7,6 @@ function processNode(node, name, parent, level, index, xStart, yStart) {
   var nodes = [];
   var links = [];
 
-  console.log(node);
-
   var data = {
     id: node.name + "_" + level.toString() + "_" + index,
     properties: {
