@@ -110,7 +110,7 @@ jobs:
 
       - name: Build and load into local Docker
         run: |
-          docker buildx build --platform linux/amd64 \
+          docker buildx build --platform linux/amd64,linux/arm/v6,linux/arm/v7
           -t nicholasjackson/fake-service:dev \
             -f ./Dockerfile \
             ./bin \
