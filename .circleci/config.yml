@@ -86,10 +86,10 @@ jobs:
       - run:
           name: Setup Docker Multi-Arch Builder
           command: |
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          docker buildx create --name multi
-          docker buildx use multi
-          docker buildx inspect --bootstrap
+            docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+            docker buildx create --name multi
+            docker buildx use multi
+            docker buildx inspect --bootstrap
 
       - run:
           name: Build and push Multi-Arch
@@ -101,10 +101,10 @@ jobs:
               --push
 
       - run:
-         name: Docker build fake VM
-         command: |
-          docker build -t nicholasjackson/fake-service:vm-${CIRCLE_TAG} -f Dockerfile-VM ./bin
-          docker push nicholasjackson/fake-service:vm-${CIRCLE_TAG}
+          name: Docker build fake VM
+          command: |
+            docker build -t nicholasjackson/fake-service:vm-${CIRCLE_TAG} -f Dockerfile-VM ./bin
+            docker push nicholasjackson/fake-service:vm-${CIRCLE_TAG}
 
   publish-github-release:
     docker:
