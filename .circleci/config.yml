@@ -80,24 +80,25 @@ jobs:
           at: /go/src/github.com/nicholasjackson
 
       - run:
-         name: docker login
-         command: docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
+          name: docker login
+          command: docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
 
       - run:
-        name: Setup Docker Multi-Arch Builder
-        command: |
+          name: Setup Docker Multi-Arch Builder
+          command: |
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
           docker buildx create --name multi
           docker buildx use multi
           docker buildx inspect --bootstrap
 
       - run:
-        name: Build and push Multi-Arch
-          docker buildx build --platform linux/arm/v6,linux/arm/v7,linux/amd64 \
-            -t nicholasjackson/fake-service:${CIRCLE_TAG} \
-            -f ./Dockerfile \
-            ./bin \
-            --push
+          name: Build and push Multi-Arch
+          command: |
+            docker buildx build --platform linux/arm/v6,linux/arm/v7,linux/amd64 \
+              -t nicholasjackson/fake-service:${CIRCLE_TAG} \
+              -f ./Dockerfile \
+              ./bin \
+              --push
 
       - run:
          name: Docker build fake VM
