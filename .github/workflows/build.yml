@@ -126,6 +126,7 @@ jobs:
           zip -j fake_service_windows_amd64.zip ./bin/windows/fake-service.exe
 
       - name: Create Release
+        id: create_release
         if: contains(github.ref, 'v0')
         uses: actions/create-release@v1
         env:
