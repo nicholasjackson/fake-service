@@ -1,0 +1,181 @@
+---
+
+name: Build
+on: [push]
+
+jobs:
+  ui:
+    env:
+      GONOSUMDB: "github.com/moby/moby"
+    name: Build UI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '12'
+
+      - name: Get dependencies
+        run: |
+          cd ui && yarn install
+
+      - name: Unit Test
+        run: |
+          cd ui && CI=true yarn test
+
+      - name: Build
+        run: |
+          cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ui
+          path: |
+            ./ui/build
+
+  build:
+    env:
+      GONOSUMDB: "github.com/moby/moby"
+      GO111MODULE: "on"
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: ui
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15.2
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: ui
+          path: ui/build
+
+      - name: Get dependencies
+        run: |
+          go get -u github.com/gobuffalo/packr/v2/packr2
+          go get -v -t ./...
+
+      - name: Unit Test
+        run: |
+          go test -v ./...
+
+      - name: Build
+        run: |
+          packr2
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/amd64/fake-service
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o bin/arm/6/fake-service
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o bin/arm/7/fake-service
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/darwin/fake-service
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o bin/windows/fake-service.exe
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: binaries
+          path: |
+            ./bin
+
+  release:
+    env:
+      GONOSUMDB: "github.com/moby/moby"
+
+    name: Release Application
+    needs: build
+    runs-on: ubuntu-latest
+    if: contains(github.ref, 'dev') || contains(github.ref, 'v')
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: binaries
+          path: bin
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Setup Docker Multi-Arch Builder
+        run: |
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          docker buildx create --name multi
+          docker buildx use multi
+          docker buildx inspect --bootstrap
+
+      - name: Build and load into local Docker
+        run: |
+          docker buildx build --platform linux/arm/v7,linux/arm/v6,linux/amd64 \
+            -t nicholasjackson/fake-service:${GITHUB_REF##*/} \
+            -f ./Dockerfile \
+            ./bin \
+            --push
+
+      - name: Zip binaries
+        run: |
+          zip -j fake_service_linux_amd64.zip ./bin/amd64/fake-service
+          zip -j fake_service_linux_arm6.zip ./bin/arm/6/fake-service
+          zip -j fake_service_linux_arm7.zip ./bin/arm/7/fake-service
+          zip -j fake_service_darwin_amd64.zip ./bin/darwin/fake-service
+          zip -j fake_service_windows_amd64.zip ./bin/windows/fake-service.exe
+
+      - name: Create Release
+        if: contains(github.ref, 'v0')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset Linux AMD64
+        if: contains(github.ref, 'v0')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_linux_amd64.zip
+          asset_name: fake_service_linux_amd64.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Asset Arm 6
+        if: contains(github.ref, 'v0')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_linux_arm6.zip
+          asset_name: fake_service_linux_arm6.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Asset Arm 7
+        if: contains(github.ref, 'v0')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_linux_arm7.zip
+          asset_name: fake_service_linux_arm7.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Asset Windows
+        if: contains(github.ref, 'v0')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_windows_amd64.zip
+          asset_name: fake_service_windows_amd64.zip
+          asset_content_type: application/zip
