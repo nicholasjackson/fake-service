@@ -38,6 +38,7 @@ jobs:
   build:
     env:
       GONOSUMDB: "github.com/moby/moby"
+      GO111MODULE: "on"
     name: Build Application
     runs-on: ubuntu-latest
     needs: ui
