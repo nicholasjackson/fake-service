@@ -87,7 +87,7 @@ jobs:
     name: Release Application
     needs: build
     runs-on: ubuntu-latest
-    if: contains(github.ref, 'dev')
+    if: contains(github.ref, 'dev') || contains(github.ref, 'v')
     steps:
       - uses: actions/checkout@v2
 
@@ -112,7 +112,60 @@ jobs:
       - name: Build and load into local Docker
         run: |
           docker buildx build --platform linux/arm/v7,linux/arm/v6,linux/amd64 \
-          -t nicholasjackson/fake-service:dev \
+            -t nicholasjackson/fake-service:${GITHUB_REF##*/} \
             -f ./Dockerfile \
             ./bin \
             --push
+
+      - name: Zip binaries
+        run: |
+          zip -j fake_service_linux_amd64.zip ./bin/amd64/fake-service
+          zip -j fake_service_linux_arm6.zip ./bin/arm/6/fake-service
+          zip -j fake_service_linux_arm7.zip ./bin/arm/7/fake-service
+          zip -j fake_service_darwin_amd64.zip ./bin/darwin/fake-service
+          zip -j fake_service_windows_amd64.zip ./bin/windows/fake-service.exe
+
+      - name: Create Release
+        if: contains(github.ref, 'v')
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset Linux AMD64
+        if: contains(github.ref, 'v')
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_linux_amd64.zip
+          asset_name: fake_service_linux_amd64.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Asset Arm 6
+        if: contains(github.ref, 'v')
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_linux_arm6.zip
+          asset_name: fake_service_linux_arm6.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Asset Arm 7
+        if: contains(github.ref, 'v')
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_linux_arm7.zip
+          asset_name: fake_service_linux_arm7.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Asset Windows
+        if: contains(github.ref, 'v')
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_windows_amd64.zip
+          asset_name: fake_service_windows_amd64.zip
+          asset_content_type: application/zip
