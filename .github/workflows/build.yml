@@ -107,5 +107,5 @@ jobs:
           docker buildx build --platform linux/amd64 \
           -t nicholasjackson/fake-service:dev \
             -f ./Dockerfile \
-            ./dist \
+            ./bin \
             --push
