@@ -85,7 +85,7 @@ jobs:
     name: Release Application
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.ref == "refs/heads/dev" }}
+    if: contains(github.ref, "dev")
     steps:
       - uses: actions/checkout@v2
 
