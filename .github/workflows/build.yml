@@ -126,8 +126,10 @@ jobs:
           zip -j fake_service_windows_amd64.zip ./bin/windows/fake-service.exe
 
       - name: Create Release
-        if: contains(github.ref, 'v')
+        if: contains(github.ref, 'v0')
         uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
@@ -135,8 +137,10 @@ jobs:
           prerelease: false
 
       - name: Upload Release Asset Linux AMD64
-        if: contains(github.ref, 'v')
+        if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./fake_service_linux_amd64.zip
@@ -144,8 +148,10 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Release Asset Arm 6
-        if: contains(github.ref, 'v')
+        if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./fake_service_linux_arm6.zip
@@ -153,8 +159,10 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Release Asset Arm 7
-        if: contains(github.ref, 'v')
+        if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./fake_service_linux_arm7.zip
@@ -162,8 +170,10 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Release Asset Windows
-        if: contains(github.ref, 'v')
+        if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./fake_service_windows_amd64.zip
