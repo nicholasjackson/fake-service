@@ -20,7 +20,7 @@ RUN sed -i 's/;nodaemon=false/nodaemon=true/g' /etc/supervisord.conf
 
 # add fake service
 RUN mkdir app
-COPY ./bin/fake-service-linux /app/fake-service
+COPY ./amd64/fake-service /app/fake-service
 
 # set default env vars so supervisor
 # does not crash on start
