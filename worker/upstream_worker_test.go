@@ -38,14 +38,13 @@ func TestUpstreamWorkerWithTwoURIAndSingleWorkerFirstFail(t *testing.T) {
 	callCount := 0
 	w := New(1, func(uri string) (*response.Response, error) {
 		callCount++
-		time.Sleep(10 * time.Millisecond)
 
-		return &response.Response{}, fmt.Errorf("Boom")
+		return &response.Response{}, fmt.Errorf(fmt.Sprintf("%d", callCount))
 	})
 
 	w.Do([]string{"123", "abc"})
 
-	assert.Equal(t, 1, callCount)
+	assert.Equal(t, w.err.Error(), "1")
 }
 
 func TestUpstreamWorkerWithTwoURIAndTwoWorkers(t *testing.T) {
@@ -76,10 +75,10 @@ func TestUpstreamWorkerWithTwoURIAndTwoWorkerFirstFail(t *testing.T) {
 	w := New(2, func(uri string) (*response.Response, error) {
 		callCount++
 
-		return &response.Response{}, fmt.Errorf("Boom")
+		return &response.Response{}, fmt.Errorf(fmt.Sprintf("%d", callCount))
 	})
 
 	w.Do([]string{"123", "abc"})
 
-	assert.Equal(t, 1, callCount)
+	assert.Equal(t, w.err.Error(), "1")
 }
