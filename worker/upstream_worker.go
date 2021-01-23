@@ -19,8 +19,7 @@ type Done struct {
 type UpstreamWorker struct {
 	workerCount int
 	workChan    chan string
-	errChan     chan error
-	doneChan    chan struct{}
+	err         error
 	workFunc    WorkFunc
 	waitGroup   *sync.WaitGroup
 	responses   []Done
@@ -31,8 +30,6 @@ func New(workerCount int, f WorkFunc) *UpstreamWorker {
 	return &UpstreamWorker{
 		workerCount: workerCount,
 		workChan:    make(chan string),
-		errChan:     make(chan error),
-		doneChan:    make(chan struct{}),
 		workFunc:    f,
 		waitGroup:   &sync.WaitGroup{},
 		responses:   []Done{},
@@ -41,15 +38,15 @@ func New(workerCount int, f WorkFunc) *UpstreamWorker {
 
 // Do runs the worker with the given uris
 func (u *UpstreamWorker) Do(uris []string) error {
+	if u.workerCount > len(uris) {
+		u.workerCount = len(uris)
+	}
+
 	// start the workers
+	u.waitGroup.Add(u.workerCount)
 	for n := 0; n < u.workerCount; n++ {
 		go u.worker()
 	}
-
-	u.waitGroup.Add(len(uris))
-
-	// monitor the threads and send a message when done
-	u.monitorStatus()
 
 	// start the work
 	go func() {
@@ -61,36 +58,13 @@ func (u *UpstreamWorker) Do(uris []string) error {
 		close(u.workChan)
 	}()
 
-	var err error
-	select {
-	case err = <-u.errChan:
-		// drain the work channel to ensure the worker does
-		// not leak goroutines
-		for {
-			<-u.workChan
-			_, ok := <-u.workChan
-			if !ok {
-				break
-			}
-		}
-		return err
-	case <-u.doneChan:
-		return nil
-	}
-
+	u.waitGroup.Wait()
+	return u.err
 }
 
 // Responses returns the responses from the upstream calls
 func (u *UpstreamWorker) Responses() []Done {
 	return u.responses
-}
-
-//
-func (u *UpstreamWorker) monitorStatus() {
-	go func() {
-		u.waitGroup.Wait()
-		u.doneChan <- struct{}{}
-	}()
 }
 
 func (u *UpstreamWorker) worker() {
@@ -105,10 +79,9 @@ func (u *UpstreamWorker) worker() {
 		resp, err := u.workFunc(uri)
 		u.responses = append(u.responses, Done{uri, resp})
 
-		if err != nil {
-			u.errChan <- err
-			break
+		if err != nil && u.err == nil {
+			u.err = err
 		}
-		u.waitGroup.Done()
 	}
+	u.waitGroup.Done()
 }
