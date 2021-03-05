@@ -1,6 +1,6 @@
 FROM alpine:latest as base
 
-RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+RUN apk update && apk add ca-certificates curl && rm -rf /var/cache/apk/*
 
 # Copy AMD binaries
 FROM base AS image-amd64-

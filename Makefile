@@ -1,4 +1,4 @@
-version=v0.17.4
+version=v0.21.0
 
 protos:
 	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
@@ -49,7 +49,8 @@ build_docker_multi: build_linux build_arm7 build_arm6
 	docker buildx build --platform linux/arm/v6,linux/arm/v7,linux/amd64 \
 		-t nicholasjackson/fake-service:${version} \
     -f ./Dockerfile \
-    ./bin
+    ./bin \
+		--push
 	docker buildx rm multi
 
 run_downstream:
