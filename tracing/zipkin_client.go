@@ -39,7 +39,7 @@ func NewOpenTracingClient(uri, name, serviceURI string) Client {
 	// create our local service endpoint
 	endpoint, err := zipkin.NewEndpoint(name, serviceURI)
 	if err != nil {
-		log.Fatalf("unable to create local endpoint: %+v\n", err)
+		log.Fatalf("unable to create local endpoint: %s, error: %+v\n", serviceURI, err)
 	}
 
 	// initialize our tracer
