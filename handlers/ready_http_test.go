@@ -60,6 +60,7 @@ func TestReadyReturnsOKResponseWhenDelayElapsed(t *testing.T) {
 		1*time.Millisecond,
 	)
 
-	// should be ten calls made as it take 10 milliseconds to become ready
-	assert.Equal(t, 10, calls)
+	// should be more than 1 call, as there should be at least one unavailable response
+	// this test is not coded to a fixed amound due to varinng speeds on CI
+	assert.Greater(t, calls, 1)
 }
