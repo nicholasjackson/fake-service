@@ -73,13 +73,16 @@ var loadCPUClockSpeed = env.Float64("LOAD_CPU_CLOCK_SPEED", false, 1000, "MHz of
 var loadCPUCores = env.Float64("LOAD_CPU_CORES", false, -1, "Number of cores to generate fake CPU load over, by default fake-service will use all cores")
 var loadCPUPercentage = env.Float64("LOAD_CPU_PERCENTAGE", false, 0, "Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES. If LOAD_CPU_ALLOCATED is not specified CPU percentage is based on the Total CPU available")
 
+var loadMemoryAllocated = env.Int("LOAD_MEMORY_PER_REQUEST", false, 0, "Memory in bytes consumed per request")
+var loadMemoryVariance = env.Int("LOAD_MEMORY_VARIANCE", false, 0, "Percentage variance of the memory consumed per request, i.e with a value of 50 = 50%, and given a LOAD_MEMORY_PER_REQUEST of 1024 bytes, actual consumption per request would be in the range 516 - 1540 bytes")
+
 // metrics / tracing / logging
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
 var datadogTracingEndpointHost = env.String("TRACING_DATADOG_HOST", false, "", "Hostname or IP for Datadog tracing collector")
 var datadogTracingEndpointPort = env.String("TRACING_DATADOG_PORT", false, "8126", "Port for Datadog tracing collector")
 var datadogMetricsEndpointHost = env.String("METRICS_DATADOG_HOST", false, "", "Hostname or IP for Datadog metrics collector")
 var datadogMetricsEndpointPort = env.String("METRICS_DATADOG_PORT", false, "8125", "Port for Datadog metrics collector")
-var datadogMetricsEnvironment  = env.String("METRICS_DATADOG_ENVIRONMENT", false, "production", "Environment tag for Datadog metrics collector")
+var datadogMetricsEnvironment = env.String("METRICS_DATADOG_ENVIRONMENT", false, "production", "Environment tag for Datadog metrics collector")
 var logFormat = env.String("LOG_FORMAT", false, "text", "Log file format. [text|json]")
 var logLevel = env.String("LOG_LEVEL", false, "info", "Log level for output. [info|debug|trace|warn|error]")
 var logOutput = env.String("LOG_OUTPUT", false, "stdout", "Location to write log output, default is stdout, e.g. /var/log/web.log")
@@ -87,6 +90,10 @@ var logOutput = env.String("LOG_OUTPUT", false, "stdout", "Location to write log
 // TLS Certs
 var tlsCertificate = env.String("TLS_CERT_LOCATION", false, "", "Location of PEM encoded x.509 certificate for securing server")
 var tlsKey = env.String("TLS_KEY_LOCATION", false, "", "Location of PEM encoded private key for securing server")
+
+var healthResponseCode = env.Int("HEALTH_CHECK_RESPONSE_CODE", false, 200, "Response code returned from the HTTP health check at /health")
+var readyResponseCode = env.Int("READY_CHECK_RESPONSE_CODE", false, 200, "Response code returned from the HTTP readyness check at /ready")
+var readyResponseDelay = env.Duration("READY_CHECK_RESPONSE_DELAY", false, 0*time.Second, "Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE")
 
 var version = "dev"
 
@@ -171,7 +178,8 @@ func main() {
 		*loadCPUPercentage = *loadCPUAllocated / (*loadCPUClockSpeed * *loadCPUCores) * *loadCPUPercentage
 	}
 
-	generator := load.NewGenerator(*loadCPUCores, *loadCPUPercentage)
+	// create a generator that will be used to create memory and CPU load per request
+	generator := load.NewGenerator(*loadCPUCores, *loadCPUPercentage, *loadMemoryAllocated, *loadMemoryVariance, logger.Log().Named("load_generator"))
 
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest, *upstreamRequestTimeout, *upstreamAllowInsecure)
@@ -208,7 +216,8 @@ func main() {
 			logger,
 		)
 
-		hq := handlers.NewHealth(logger)
+		hh := handlers.NewHealth(logger, *healthResponseCode)
+		rh := handlers.NewReady(logger, *readyResponseCode, *readyResponseDelay)
 
 		mux := http.NewServeMux()
 
@@ -222,8 +231,9 @@ func main() {
 		// Add the User interface handler
 		mux.Handle("/ui/", http.StripPrefix("/ui", http.FileServer(box)))
 
-		// Add the generic health handler
-		mux.HandleFunc("/health", hq.Handle)
+		// Add the generic health and ready handlers
+		mux.HandleFunc("/health", hh.Handle)
+		mux.HandleFunc("/ready", rh.Handle)
 
 		// uncomment to enable pprof
 		//mux.HandleFunc("/debug/pprof/", pprof.Index)
