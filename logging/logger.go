@@ -407,6 +407,18 @@ func (l *Logger) CallHealthHTTP() *LogProcess {
 	}
 }
 
+func (l *Logger) CallReadyHTTP() *LogProcess {
+	st := time.Now()
+	l.log.Info("Handling ready request")
+
+	return &LogProcess{
+		finished: func(err error, meta map[string]string) {
+			te := time.Now()
+			l.metrics.Timing("handle.ready.http", te.Sub(st), getTags(err, meta))
+		},
+	}
+}
+
 // formatRequest generates ascii representation of a request
 func formatRequest(r *http.Request) string {
 	// Create return string

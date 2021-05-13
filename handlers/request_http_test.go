@@ -42,7 +42,7 @@ func setupRequest(t *testing.T, uris []string, errorRate float64) (*Request, *cl
 	}
 
 	i := errors.NewInjector(hclog.Default(), errorRate, http.StatusInternalServerError, "http_error", 0, 0, 0)
-	lg := load.NewGenerator(0, 0)
+	lg := load.NewGenerator(0, 0, 0, 0, hclog.Default())
 
 	return &Request{
 		name:          "test",

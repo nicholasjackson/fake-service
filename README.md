@@ -37,6 +37,10 @@ Environment variables:
        Maximum duration for upstream service requests
   HTTP_CLIENT_APPEND_REQUEST  default: 'true'
        When true the path, querystring, and any headers sent to the service will be appended to any upstream calls
+  READY_CHECK_RESPONSE_CODE  default: '200'
+       Response code returned from the HTTP readyness check at /ready
+  READY_CHECK_RESPONSE_DELAY  default: '0s'
+       Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE
   TIMING_50_PERCENTILE  default: '0s'
        Median duration for a request
   TIMING_90_PERCENTILE  default: '0s'
@@ -64,6 +68,10 @@ Environment variables:
   LOAD_CPU_PERCENTAGE  default: '0'
        Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES. If LOAD_CPU_ALLOCATED 
        is not specified CPU percentage is based on the Total CPU available
+  LOAD_MEMORY_PER_REQUEST  default: '0'
+       Memory in bytes consumed per request
+  LOAD_MEMORY_VARIANCE  default: '0'
+       Percentage variance of the memory consumed per request, i.e with a value of 50 = 50%, and given a LOAD_MEMORY_PER_REQUEST of 1024 bytes, actual consumption per request would be in the range 516 - 1540 bytes
   TRACING_ZIPKIN  default: no default
        Location of Zipkin tracing collector
   TRACING_DATADOG_HOST  default: no default
@@ -84,6 +92,7 @@ Environment variables:
        Location of PEM encoded x.509 certificate for securing server
   TLS_KEY_LOCATION  default: no default
        Location of PEM encoded private key for securing server
+  HEALTH_CHECK_RESPONSE_CODE
 ```
 
 ## Tracing
@@ -282,12 +291,39 @@ Fake Service can simulate load carried out during a service call by configuring 
        Number of cores to generate fake CPU load over
   LOAD_CPU_PERCENTAGE  default: '0'
        Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES
+  LOAD_MEMORY_PER_REQUEST  default: '0'
+       Memory in bytes consumed per request
+  LOAD_MEMORY_VARIANCE  default: '0'
+       Percentage variance of the memory consumed per request, i.e with a value of 50 = 50%, and given a LOAD_MEMORY_PER_REQUEST of 1024 bytes, actual consumption per request would be in the range 516 - 1540 bytes
 ```
 
 For example to simulate a service call consuming 100% of 8 Cores you can run fake service with the following command:
 
 ```
 LOAD_CPU_CORES=8 LOAD_CPU_PERCENTAGE=100 fake-service
+```
+
+To simulate each service call consuming between 50MB and 150MB of memory
+
+```
+LOAD_MEMORY_PER_REQUEST=104857600 LOAD_MEMORY_VARIANCE=50 fake-service
+```
+
+### Health checks
+
+Fake service implements both health checks and readyness checks. By default these are both configured to return a status 200 when called.
+
+* Readyness check path: "/ready"
+* Health check path: "/health"
+
+To override the behaviour of the health check or the readyness checks the following environment varaibles can be set.
+
+```
+  HEALTH_CHECK_RESPONSE_CODE  default: '200'
+       Response code returned from the HTTP health check at /health
+  READY_CHECK_RESPONSE_CODE  default: '200'
+       Response code returned from the HTTP readyness check at /ready
+  READY_CHECK_RESPONSE_DELAY  default: '0s'
 ```
 
 ## UI

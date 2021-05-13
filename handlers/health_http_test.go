@@ -10,19 +10,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setupHealth(t *testing.T) *Health {
-	return &Health{
+func setupHealth(t *testing.T, code int) *Health {
+	return NewHealth(
 		logging.NewLogger(&logging.NullMetrics{}, hclog.Default(), nil),
-	}
+		code,
+	)
 }
 
 func TestHealthReturnsCorrectResponse(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
-	h := setupHealth(t)
+	h := setupHealth(t, 200)
 
 	h.Handle(rr, r)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, 200, rr.Code)
 	assert.Equal(t, "OK", rr.Body.String())
 }
