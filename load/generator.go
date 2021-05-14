@@ -102,8 +102,23 @@ func (g *Generator) generateMemory() {
 	go func() {
 		memLen := g.memoryBytes
 		if g.memoryVariance > 0 {
-			variance := rand.Intn(g.memoryVariance)
-			memLen = g.memoryBytes * (variance / 100)
+			// Varianj
+			// 50 / 100 = 0.5
+			// 0.5 *
+
+			// variance is the max variance to apply
+			// we need to apply a random variance that has a max of this number
+			// e.g. Variance = 50 random is between 0-50
+			variance := float64(rand.Intn(g.memoryVariance)) / 100
+
+			// the memory variance should sometimes be larger and
+			// sometimes be smaller
+			direction := rand.Intn(2)
+
+			variance = variance + float64(direction)
+
+			memLen = int(float64(g.memoryBytes) * variance)
+			g.logger.Info("Generate memory variance", "variance", variance, "direction", direction)
 		}
 
 		// allocate a slice of memory
@@ -114,14 +129,14 @@ func (g *Generator) generateMemory() {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
 
-		g.logger.Info("Allocated memory", "MB", bToMb(m.Alloc))
+		g.logger.Info("Allocated memory", "MB", bToMb(m.Alloc), "mem", memLen)
 
 		// block until signal to complete load generation is received
 		// mem should be deallocated when this function completes and will be
 		// garbage collected
 		<-g.finished
 
-		//
+		// clean references
 		mem = nil
 
 		// force go to collect the memory
