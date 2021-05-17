@@ -121,7 +121,7 @@ func (g *Generator) generateMemory() {
 			g.logger.Info("Generate memory variance", "variance", variance, "direction", direction)
 		}
 
-		// allocate a slice of memory
+		// allocate memory
 		mem := make([]byte, 0, memLen)
 		_ = mem
 
@@ -141,7 +141,7 @@ func (g *Generator) generateMemory() {
 
 		// force go to collect the memory
 		// it might be better to use malloc and dealloc here rather than th GC
-		runtime.GC()
+		//runtime.GC()
 	}()
 }
 
