@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
 	"time"
@@ -146,7 +148,7 @@ func main() {
 
 	logger := logging.NewLogger(metrics, hclog.New(lo), sdf)
 
-	rd := timing.NewRequestDuration(
+	requestDuration := timing.NewRequestDuration(
 		*timing50Percentile,
 		*timing90Percentile,
 		*timing99Percentile,
@@ -201,70 +203,115 @@ func main() {
 
 	logger.ServiceStarted(*name, *upstreamURIs, *upstreamWorkers, *listenAddress, *serviceType)
 
-	if *serviceType == "http" {
+	var httpServer *http.Server
+	var grpcServer *grpc.Server
 
-		rq := handlers.NewRequest(
-			*name,
-			*message,
-			rd,
-			tidyURIs(*upstreamURIs),
-			*upstreamWorkers,
-			defaultClient,
-			grpcClients,
-			errorInjector,
-			generator,
-			logger,
-		)
+	switch *serviceType {
+	case "http":
+		httpServer = startupHTTP(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient)
+	case "grpc":
+		grpcServer = startupGRPC(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient)
+	}
 
-		hh := handlers.NewHealth(logger, *healthResponseCode)
-		rh := handlers.NewReady(logger, *readyResponseCode, *readyResponseDelay)
+	// trap sigterm or interupt and gracefully shutdown the server
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Kill)
 
-		mux := http.NewServeMux()
+	// Block until a signal is received.
+	sig := <-c
+	log.Println("Graceful shutdown, got signal:", sig)
 
-		// add the static files
-		logger.Log().Info("Adding handler for UI static files")
-		box := packr.New("ui", "./ui/build")
-		for _, f := range box.List() {
-			logger.Log().Info("File", "path", f)
-		}
+	// gracefully shutdown the server, waiting max 30 seconds for current operations to complete
 
-		// Add the User interface handler
-		mux.Handle("/ui/", http.StripPrefix("/ui", http.FileServer(box)))
+	switch *serviceType {
+	case "http":
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		httpServer.Shutdown(ctx)
+	case "grpc":
+		// if the server does not gracefully stop after 30s, kill it
+		timer := time.AfterFunc(30*time.Second, func() {
+			grpcServer.Stop() // force stop the server
+		})
 
-		// Add the generic health and ready handlers
-		mux.HandleFunc("/health", hh.Handle)
-		mux.HandleFunc("/ready", rh.Handle)
+		grpcServer.GracefulStop()
+		timer.Stop()
+	}
+}
 
-		// uncomment to enable pprof
-		//mux.HandleFunc("/debug/pprof/", pprof.Index)
-		//mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		//mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		//mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		//mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+func startupHTTP(
+	logger *logging.Logger,
+	rd *timing.RequestDuration,
+	errorInjector *errors.Injector,
+	generator *load.Generator,
+	grpcClients map[string]client.GRPC,
+	defaultClient client.HTTP,
+) *http.Server {
 
-		mux.HandleFunc("/", rq.Handle)
+	rq := handlers.NewRequest(
+		*name,
+		*message,
+		rd,
+		tidyURIs(*upstreamURIs),
+		*upstreamWorkers,
+		defaultClient,
+		grpcClients,
+		errorInjector,
+		generator,
+		logger,
+	)
 
-		// CORS
-		corsOptions := make([]cors.CORSOption, 0)
-		if *allowedOrigins != "" {
-			corsOptions = append(corsOptions, cors.AllowedOrigins(strings.Split(*allowedOrigins, ",")))
-		}
+	hh := handlers.NewHealth(logger, *healthResponseCode)
+	rh := handlers.NewReady(logger, *readyResponseCode, *readyResponseDelay)
 
-		if *allowedHeaders != "" {
-			corsOptions = append(corsOptions, cors.AllowedHeaders(strings.Split(*allowedHeaders, ",")))
-		}
+	mux := http.NewServeMux()
 
-		if *allowCredentials {
-			corsOptions = append(corsOptions, cors.AllowCredentials())
-		}
+	// add the static files
+	logger.Log().Info("Adding handler for UI static files")
+	box := packr.New("ui", "./ui/build")
+	for _, f := range box.List() {
+		logger.Log().Info("File", "path", f)
+	}
 
-		logger.Log().Info("Settings CORS options", "allow_creds", *allowCredentials, "allow_headers", *allowedHeaders, "allow_origins", *allowedOrigins)
-		ch := cors.CORS(corsOptions...)
+	// Add the User interface handler
+	mux.Handle("/ui/", http.StripPrefix("/ui", http.FileServer(box)))
 
-		var err error
-		server := &http.Server{Addr: *listenAddress, Handler: ch(mux)}
-		server.SetKeepAlivesEnabled(*upstreamClientKeepAlives)
+	// Add the generic health and ready handlers
+	mux.HandleFunc("/health", hh.Handle)
+	mux.HandleFunc("/ready", rh.Handle)
 
+	// uncomment to enable pprof
+	//mux.HandleFunc("/debug/pprof/", pprof.Index)
+	//mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	//mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	//mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	//mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+	mux.HandleFunc("/", rq.Handle)
+
+	// CORS
+	corsOptions := make([]cors.CORSOption, 0)
+	if *allowedOrigins != "" {
+		corsOptions = append(corsOptions, cors.AllowedOrigins(strings.Split(*allowedOrigins, ",")))
+	}
+
+	if *allowedHeaders != "" {
+		corsOptions = append(corsOptions, cors.AllowedHeaders(strings.Split(*allowedHeaders, ",")))
+	}
+
+	if *allowCredentials {
+		corsOptions = append(corsOptions, cors.AllowCredentials())
+	}
+
+	logger.Log().Info("Settings CORS options", "allow_creds", *allowCredentials, "allow_headers", *allowedHeaders, "allow_origins", *allowedOrigins)
+	ch := cors.CORS(corsOptions...)
+
+	var err error
+	server := &http.Server{Addr: *listenAddress, Handler: ch(mux)}
+	server.SetKeepAlivesEnabled(*upstreamClientKeepAlives)
+
+	go func() {
 		if *tlsCertificate != "" && *tlsKey != "" {
 			logger.Log().Info("Enabling TLS")
 			err = server.ListenAndServeTLS(*tlsCertificate, *tlsKey)
@@ -272,55 +319,68 @@ func main() {
 			err = server.ListenAndServe()
 		}
 
-		if err != nil {
+		if err != nil && err != http.ErrServerClosed {
 			logger.Log().Error("Error starting service", "address", *listenAddress, "error", err)
-		}
-	}
-
-	if *serviceType == "grpc" {
-		lis, err := net.Listen("tcp", *listenAddress)
-		if err != nil {
-			logger.Log().Error("failed to create lister", "address", *listenAddress, "error", err)
 			os.Exit(1)
 		}
+	}()
 
-		serverOptions := []grpc.ServerOption{}
+	return server
+}
 
-		// disable keep alives
-		if !*upstreamClientKeepAlives {
-			serverOptions = append(serverOptions, grpc.KeepaliveParams(keepalive.ServerParameters{MaxConnectionAge: 5 * time.Second}))
-		}
+func startupGRPC(
+	logger *logging.Logger,
+	rd *timing.RequestDuration,
+	errorInjector *errors.Injector,
+	generator *load.Generator,
+	grpcClients map[string]client.GRPC,
+	defaultClient client.HTTP,
+) *grpc.Server {
 
-		if *tlsCertificate != "" && *tlsKey != "" {
-			creds, err := credentials.NewServerTLSFromFile(*tlsCertificate, *tlsKey)
-			if err != nil {
-				log.Fatalf("Failed to setup TLS: %v", err)
-			}
-			serverOptions = append(serverOptions, grpc.Creds(creds))
-		}
-
-		grpcServer := grpc.NewServer(serverOptions...)
-
-		// register the reflection service which allows clients to determine the methods
-		// for this gRPC service
-		reflection.Register(grpcServer)
-
-		fakeServer := handlers.NewFakeServer(
-			*name,
-			*message,
-			rd,
-			tidyURIs(*upstreamURIs),
-			*upstreamWorkers,
-			defaultClient,
-			grpcClients,
-			errorInjector,
-			generator,
-			logger,
-		)
-
-		api.RegisterFakeServiceServer(grpcServer, fakeServer)
-		grpcServer.Serve(lis)
+	lis, err := net.Listen("tcp", *listenAddress)
+	if err != nil {
+		logger.Log().Error("failed to create lister", "address", *listenAddress, "error", err)
+		os.Exit(1)
 	}
+
+	serverOptions := []grpc.ServerOption{}
+
+	// disable keep alives
+	if !*upstreamClientKeepAlives {
+		serverOptions = append(serverOptions, grpc.KeepaliveParams(keepalive.ServerParameters{MaxConnectionAge: 5 * time.Second}))
+	}
+
+	if *tlsCertificate != "" && *tlsKey != "" {
+		creds, err := credentials.NewServerTLSFromFile(*tlsCertificate, *tlsKey)
+		if err != nil {
+			log.Fatalf("Failed to setup TLS: %v", err)
+		}
+		serverOptions = append(serverOptions, grpc.Creds(creds))
+	}
+
+	grpcServer := grpc.NewServer(serverOptions...)
+
+	// register the reflection service which allows clients to determine the methods
+	// for this gRPC service
+	reflection.Register(grpcServer)
+
+	fakeServer := handlers.NewFakeServer(
+		*name,
+		*message,
+		rd,
+		tidyURIs(*upstreamURIs),
+		*upstreamWorkers,
+		defaultClient,
+		grpcClients,
+		errorInjector,
+		generator,
+		logger,
+	)
+
+	api.RegisterFakeServiceServer(grpcServer, fakeServer)
+	go grpcServer.Serve(lis)
+
+	return grpcServer
 }
 
 // tidyURIs splits the upstream URIs passed by environment variable and reuturns
