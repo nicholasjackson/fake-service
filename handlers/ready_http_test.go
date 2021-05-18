@@ -27,7 +27,7 @@ func TestReadyReturnsCorrectResponseWhenNoDelay(t *testing.T) {
 	h.Handle(rr, r)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "OK", rr.Body.String())
+	assert.Equal(t, OKMessage, rr.Body.String())
 }
 
 func TestReadyReturnsUnavailableResponseWhenDelayNotElapsed(t *testing.T) {
@@ -38,7 +38,7 @@ func TestReadyReturnsUnavailableResponseWhenDelayNotElapsed(t *testing.T) {
 	h.Handle(rr, r)
 
 	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
-	assert.Equal(t, "OK", rr.Body.String())
+	assert.Equal(t, StartingMessage, rr.Body.String())
 }
 
 func TestReadyReturnsOKResponseWhenDelayElapsed(t *testing.T) {
@@ -54,7 +54,7 @@ func TestReadyReturnsOKResponseWhenDelayElapsed(t *testing.T) {
 			rr := httptest.NewRecorder()
 			h.Handle(rr, r)
 			calls++
-			return rr.Code == http.StatusOK
+			return rr.Code == http.StatusOK && rr.Body.String() == OKMessage
 		},
 		100*time.Millisecond,
 		1*time.Millisecond,
