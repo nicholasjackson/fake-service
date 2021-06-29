@@ -11,10 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setupReady(t *testing.T, code int, delay time.Duration) *Ready {
+func setupReady(t *testing.T, successCode, failureCode int, delay time.Duration) *Ready {
 	return NewReady(
 		logging.NewLogger(&logging.NullMetrics{}, hclog.Default(), nil),
-		code,
+		successCode,
+		failureCode,
 		delay,
 	)
 }
@@ -22,7 +23,7 @@ func setupReady(t *testing.T, code int, delay time.Duration) *Ready {
 func TestReadyReturnsCorrectResponseWhenNoDelay(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
-	h := setupReady(t, http.StatusOK, 0)
+	h := setupReady(t, http.StatusOK, http.StatusServiceUnavailable, 0)
 
 	h.Handle(rr, r)
 
@@ -33,7 +34,7 @@ func TestReadyReturnsCorrectResponseWhenNoDelay(t *testing.T) {
 func TestReadyReturnsUnavailableResponseWhenDelayNotElapsed(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
-	h := setupReady(t, http.StatusOK, 10*time.Millisecond)
+	h := setupReady(t, http.StatusOK, http.StatusServiceUnavailable, 10*time.Millisecond)
 
 	h.Handle(rr, r)
 
@@ -42,7 +43,7 @@ func TestReadyReturnsUnavailableResponseWhenDelayNotElapsed(t *testing.T) {
 }
 
 func TestReadyReturnsOKResponseWhenDelayElapsed(t *testing.T) {
-	h := setupReady(t, http.StatusOK, 10*time.Millisecond)
+	h := setupReady(t, http.StatusOK, http.StatusServiceUnavailable, 10*time.Millisecond)
 
 	calls := 0
 

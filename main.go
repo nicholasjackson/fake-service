@@ -94,7 +94,9 @@ var tlsCertificate = env.String("TLS_CERT_LOCATION", false, "", "Location of PEM
 var tlsKey = env.String("TLS_KEY_LOCATION", false, "", "Location of PEM encoded private key for securing server")
 
 var healthResponseCode = env.Int("HEALTH_CHECK_RESPONSE_CODE", false, 200, "Response code returned from the HTTP health check at /health")
-var readyResponseCode = env.Int("READY_CHECK_RESPONSE_CODE", false, 200, "Response code returned from the HTTP readyness check at /ready")
+
+var readySuccessResponseCode = env.Int("READY_CHECK_RESPONSE_SUCCESS_CODE", false, 200, "Response code returned from the HTTP readiness handler `/ready` after the response delay has elapsed")
+var readyFailureResponseCode = env.Int("READY_CHECK_RESPONSE_FAILURE_CODE", false, 503, "Response code returned from the HTTP readiness handler `/ready` before the response delay has elapsed, this simulates the response code a service would return while starting")
 var readyResponseDelay = env.Duration("READY_CHECK_RESPONSE_DELAY", false, 0*time.Second, "Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE")
 
 var version = "dev"
@@ -263,7 +265,7 @@ func startupHTTP(
 	)
 
 	hh := handlers.NewHealth(logger, *healthResponseCode)
-	rh := handlers.NewReady(logger, *readyResponseCode, *readyResponseDelay)
+	rh := handlers.NewReady(logger, *readySuccessResponseCode, *readyFailureResponseCode, *readyResponseDelay)
 
 	mux := http.NewServeMux()
 

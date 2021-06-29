@@ -22,24 +22,19 @@ type Ready struct {
 }
 
 // NewReady creates a new ready handler
-func NewReady(logger *logging.Logger, code int, delay time.Duration) *Ready {
+func NewReady(logger *logging.Logger, successCode, failureCode int, delay time.Duration) *Ready {
 	r := &Ready{
 		logger:        logger,
-		statusCode:    code,
-		statusMessage: OKMessage,
+		statusCode:    failureCode,
+		statusMessage: StartingMessage,
 		delay:         delay,
 	}
 
-	if delay != 0 {
-		// set the status code to unavailable until the delay has passed
-		r.statusCode = http.StatusServiceUnavailable
-		r.statusMessage = StartingMessage
-
-		time.AfterFunc(delay, func() {
-			r.statusCode = code
-			r.statusMessage = OKMessage
-		})
-	}
+	// set the status code to unavailable until the delay has passed
+	time.AfterFunc(delay, func() {
+		r.statusCode = successCode
+		r.statusMessage = OKMessage
+	})
 
 	return r
 }

@@ -1,6 +1,6 @@
 # This image contains Fake Service Consul and Envoy, it can be used to simulate a Virtual Machine containing the Consul Agent
 # and Envoy running as Daemon processes.
-FROM nicholasjackson/consul-envoy:v1.8.0-v0.12.4
+FROM nicholasjackson/consul-envoy:v1.9.5-v1.16.0
 
 # Setup bash and supervisord etc
 RUN apk add --update bash supervisor curl vim jq 
@@ -11,16 +11,18 @@ RUN mkdir -p /etc/supervisor.d/
 COPY entrypoint.sh /entrypoint.sh
 COPY prestart.sh /prestart.sh
 
+RUN chmod +x /entrypoint.sh
+RUN chmod +x /prestart.sh
+
 # Setup the supervisor d file
 COPY fake-service.ini /etc/supervisor.d/fake-service.ini
-RUN chmod +x /entrypoint.sh
 
 # Run supervisord
 RUN sed -i 's/;nodaemon=false/nodaemon=true/g' /etc/supervisord.conf
 
 # add fake service
 RUN mkdir app
-COPY ./amd64/fake-service /app/fake-service
+COPY ./bin/amd64/fake-service /app/fake-service
 
 # set default env vars so supervisor
 # does not crash on start
