@@ -121,11 +121,7 @@ jobs:
 
       - name: Build and load into local Docker
         run: |
-<<<<<<< HEAD
-          docker buildx build --platform linux/arm/v7,linux/arm/v6,linux/amd64,linux/amd64 \
-=======
           docker buildx build --platform linux/arm/v7,linux/arm/v6,linux/arm64,linux/amd64 \
->>>>>>> 2865e3916977be6c684ffaa62e1214a5cc586fcf
             -t nicholasjackson/fake-service:${GITHUB_REF##*/} \
             -f ./Dockerfile \
             ./bin \
@@ -133,20 +129,12 @@ jobs:
 
       - name: Zip binaries
         run: |
-<<<<<<< HEAD
           zip -j fake_service_linux_amd64.zip ./bin/linux/amd64/fake-service
           zip -j fake_service_linux_arm64.zip ./bin/linux/arm64/fake-service
           zip -j fake_service_linux_arm6.zip ./bin/linux/arm6/fake-service
           zip -j fake_service_linux_arm7.zip ./bin/linux/arm7/fake-service
           zip -j fake_service_darwin_amd64.zip ./bin/darwin/amd64/fake-service
           zip -j fake_service_darwin_arm64.zip ./bin/darwin/arm64/fake-service
-=======
-          zip -j fake_service_linux_amd64.zip ./bin/amd64/fake-service
-          zip -j fake_service_linux_arm6.zip ./bin/arm/6/fake-service
-          zip -j fake_service_linux_arm7.zip ./bin/arm/7/fake-service
-          zip -j fake_service_linux_arm64.zip ./bin/arm64/fake-service
-          zip -j fake_service_darwin_amd64.zip ./bin/darwin/fake-service
->>>>>>> 2865e3916977be6c684ffaa62e1214a5cc586fcf
           zip -j fake_service_windows_amd64.zip ./bin/windows/fake-service.exe
 
       - name: Create Release
