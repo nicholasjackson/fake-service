@@ -20,6 +20,12 @@ FROM base AS image-arm-v7
 COPY arm/7/fake-service /app/fake-service
 RUN chmod +x /app/fake-service
 
+# Copy Arm 8 binaries
+FROM base AS image-arm64-
+
+COPY arm64/fake-service /app/fake-service
+RUN chmod +x /app/fake-service
+
 FROM image-${TARGETARCH}-${TARGETVARIANT}
 
 ARG TARGETPLATFORM
