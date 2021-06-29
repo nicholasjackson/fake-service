@@ -37,10 +37,6 @@ Environment variables:
        Maximum duration for upstream service requests
   HTTP_CLIENT_APPEND_REQUEST  default: 'true'
        When true the path, querystring, and any headers sent to the service will be appended to any upstream calls
-  READY_CHECK_RESPONSE_CODE  default: '200'
-       Response code returned from the HTTP readyness check at /ready
-  READY_CHECK_RESPONSE_DELAY  default: '0s'
-       Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE
   TIMING_50_PERCENTILE  default: '0s'
        Median duration for a request
   TIMING_90_PERCENTILE  default: '0s'
@@ -92,7 +88,14 @@ Environment variables:
        Location of PEM encoded x.509 certificate for securing server
   TLS_KEY_LOCATION  default: no default
        Location of PEM encoded private key for securing server
-  HEALTH_CHECK_RESPONSE_CODE
+  HEALTH_CHECK_RESPONSE_CODE  default: '200'
+       Response code returned from the HTTP health check at /health
+  READY_CHECK_RESPONSE_SUCCESS_CODE  default: '200'
+       Response code returned from the HTTP readiness handler `/ready` after the response delay has elapsed
+  READY_CHECK_RESPONSE_FAILURE_CODE  default: '503'
+       Response code returned from the HTTP readiness handler `/ready` before the response delay has elapsed, this simulates the response code a service would return while starting
+  READY_CHECK_RESPONSE_DELAY  default: '0s'
+       Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE
 ```
 
 ## Tracing
@@ -321,9 +324,12 @@ To override the behaviour of the health check or the readyness checks the follow
 ```
   HEALTH_CHECK_RESPONSE_CODE  default: '200'
        Response code returned from the HTTP health check at /health
-  READY_CHECK_RESPONSE_CODE  default: '200'
-       Response code returned from the HTTP readyness check at /ready
+  READY_CHECK_RESPONSE_SUCCESS_CODE  default: '200'
+       Response code returned from the HTTP readiness handler `/ready` after the response delay has elapsed
+  READY_CHECK_RESPONSE_FAILURE_CODE  default: '503'
+       Response code returned from the HTTP readiness handler `/ready` before the response delay has elapsed, this simulates the response code a service would return while starting
   READY_CHECK_RESPONSE_DELAY  default: '0s'
+       Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE
 ```
 
 ## UI

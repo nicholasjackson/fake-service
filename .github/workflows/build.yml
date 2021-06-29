@@ -49,7 +49,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.15.2
+          go-version: 1.16
 
       - uses: actions/download-artifact@v2
         with:
@@ -68,11 +68,12 @@ jobs:
       - name: Build
         run: |
           packr2
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/amd64/fake-service
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/arm64/fake-service
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o bin/arm/6/fake-service
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o bin/arm/7/fake-service
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/darwin/fake-service
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/linux/amd64/fake-service
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/linux/arm64/fake-service
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o bin/linux/arm6/fake-service
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o bin/linux/arm7/fake-service
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/darwin/amd64/fake-service
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/darwin/arm64/fake-service
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o bin/windows/fake-service.exe
 
       - uses: actions/upload-artifact@v2
@@ -120,11 +121,12 @@ jobs:
 
       - name: Zip binaries
         run: |
-          zip -j fake_service_linux_amd64.zip ./bin/amd64/fake-service
-          zip -j fake_service_linux_arm6.zip ./bin/arm/6/fake-service
-          zip -j fake_service_linux_arm7.zip ./bin/arm/7/fake-service
-          zip -j fake_service_linux_arm64.zip ./bin/arm64/fake-service
-          zip -j fake_service_darwin_amd64.zip ./bin/darwin/fake-service
+          zip -j fake_service_linux_amd64.zip ./bin/linux/amd64/fake-service
+          zip -j fake_service_linux_arm64.zip ./bin/linux/arm64/fake-service
+          zip -j fake_service_linux_arm6.zip ./bin/linux/arm6/fake-service
+          zip -j fake_service_linux_arm7.zip ./bin/linux/arm7/fake-service
+          zip -j fake_service_darwin_amd64.zip ./bin/darwin/amd64/fake-service
+          zip -j fake_service_darwin_arm64.zip ./bin/darwin/arm64/fake-service
           zip -j fake_service_windows_amd64.zip ./bin/windows/fake-service.exe
 
       - name: Create Release
@@ -139,7 +141,7 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload Release Asset Linux AMD64
+      - name: Upload Release Asset Linux Amd64
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
         env:
@@ -150,7 +152,7 @@ jobs:
           asset_name: fake_service_linux_amd64.zip
           asset_content_type: application/zip
 
-      - name: Upload Release Asset Arm 6
+      - name: Upload Release Asset Arm6
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
         env:
@@ -161,7 +163,7 @@ jobs:
           asset_name: fake_service_linux_arm6.zip
           asset_content_type: application/zip
 
-      - name: Upload Release Asset Arm 7
+      - name: Upload Release Asset Arm7
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
         env:
@@ -170,6 +172,39 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./fake_service_linux_arm7.zip
           asset_name: fake_service_linux_arm7.zip
+          asset_content_type: application/zip
+      
+      - name: Upload Release Asset Arm64
+        if: contains(github.ref, 'v0')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_linux_arm64.zip
+          asset_name: fake_service_linux_arm64.zip
+          asset_content_type: application/zip
+      
+      - name: Upload Release Asset Darwin Amd64
+        if: contains(github.ref, 'v0')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_darwin_amd64.zip
+          asset_name: fake_service_darwin_amd64.zip
+          asset_content_type: application/zip
+      
+      - name: Upload Release Asset Darwin Arm64
+        if: contains(github.ref, 'v0')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./fake_service_darwin_arm64.zip
+          asset_name: fake_service_darwin_arm64.zip
           asset_content_type: application/zip
 
       - name: Upload Release Asset ARM64

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+version=v0.22.5
+=======
 version=v0.22.6
+>>>>>>> 2865e3916977be6c684ffaa62e1214a5cc586fcf
 
 protos:
 	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
@@ -43,8 +47,8 @@ build_local: build_ui
 	go build -o bin/fake-service
 	packr2 clean
 
-build_docker_vm:
-	docker build -t nicholasjackson/fake-service:vm-${version} -f Dockerfile-VM ./bin
+build_docker_vm:	build_linux
+	docker build -t nicholasjackson/fake-service:vm-${version} -f Dockerfile-VM ./
 
 build_docker_multi: build_linux build_arm7 build_arm6 build_arm64
 	docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
