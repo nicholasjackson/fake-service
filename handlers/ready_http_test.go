@@ -27,8 +27,27 @@ func TestReadyReturnsCorrectResponseWhenNoDelay(t *testing.T) {
 
 	h.Handle(rr, r)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, OKMessage, rr.Body.String())
+	calls := 0
+	assert.Eventually(
+		t,
+		func() bool {
+
+			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			rr := httptest.NewRecorder()
+			h.Handle(rr, r)
+
+			if rr.Code == http.StatusOK && rr.Body.String() == OKMessage {
+				calls++
+				return true
+			}
+
+			return false
+		},
+		100*time.Millisecond,
+		1*time.Millisecond,
+	)
+
+	assert.Equal(t, 1, calls)
 }
 
 func TestReadyReturnsUnavailableResponseWhenDelayNotElapsed(t *testing.T) {
