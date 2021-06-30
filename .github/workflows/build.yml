@@ -111,7 +111,7 @@ jobs:
           docker buildx use multi
           docker buildx inspect --bootstrap
 
-      - name: Build and load into local Docker
+      - name: Build and push Docker
         run: |
           docker buildx build --platform linux/arm/v7,linux/arm/v6,linux/arm64,linux/amd64 \
             -t nicholasjackson/fake-service:${GITHUB_REF##*/} \
@@ -152,7 +152,7 @@ jobs:
           asset_name: fake_service_linux_amd64.zip
           asset_content_type: application/zip
 
-      - name: Upload Release Asset Arm6
+      - name: Upload Release Asset Linux Arm6
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
         env:
@@ -163,7 +163,7 @@ jobs:
           asset_name: fake_service_linux_arm6.zip
           asset_content_type: application/zip
 
-      - name: Upload Release Asset Arm7
+      - name: Upload Release Asset Linux Arm7
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
         env:
@@ -174,7 +174,7 @@ jobs:
           asset_name: fake_service_linux_arm7.zip
           asset_content_type: application/zip
       
-      - name: Upload Release Asset Arm64
+      - name: Upload Release Asset Linux Arm64
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
         env:
@@ -207,18 +207,7 @@ jobs:
           asset_name: fake_service_darwin_arm64.zip
           asset_content_type: application/zip
 
-      - name: Upload Release Asset ARM64
-        if: contains(github.ref, 'v0')
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./fake_service_linux_arm64.zip
-          asset_name: fake_service_linux_arm64.zip
-          asset_content_type: application/zip
-
-      - name: Upload Release Asset Windows
+      - name: Upload Release Asset Windows Amd64
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
         env:
