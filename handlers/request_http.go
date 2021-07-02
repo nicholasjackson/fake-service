@@ -125,7 +125,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	}
 	if len(rq.externalURIs) > 0 {
 		wp := worker.New(rq.workerCount, func(uri string) (*response.Response, error) {
-			return workerHTTP(hq.Span.Context(), uri, rq.defaultClient, r, rq.log)
+			return workerExternalHTTP(hq.Span.Context(), uri, rq.defaultClient, r, rq.log)
 		})
 
 		err := wp.Do(rq.externalURIs)

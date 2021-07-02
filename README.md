@@ -15,6 +15,8 @@ Configuration values are set using environment variables, for info please see th
 Environment variables:
   UPSTREAM_URIS  default: no default
        Comma separated URIs of the upstream services to call
+  EXTERNAL_SERVICE_URIS  default: no default
+       Comma separated URIs of the external services to call
   UPSTREAM_WORKERS  default: '1'
        Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation
   SERVER_TYPE  default: 'http'
