@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/nicholasjackson/fake-service/client"
 	"github.com/nicholasjackson/fake-service/grpc/api"
@@ -66,8 +67,11 @@ func workerExternalHTTP(ctx opentracing.SpanContext, uri string, defaultClient c
 	hr := l.CallHTTPUpstream(pr, httpReq, ctx)
 	defer hr.Finished()
 
-	code, resp, headers, cookies, err := defaultClient.Do(httpReq, nil)
+	startTime := time.Now()
 
+	code, resp, headers, cookies, err := defaultClient.Do(httpReq, nil)
+	endTime := time.Now()
+	duration := endTime.Sub(startTime)
 	hr.SetMetadata("response", strconv.Itoa(code))
 	hr.SetError(err)
 
@@ -80,14 +84,16 @@ func workerExternalHTTP(ctx opentracing.SpanContext, uri string, defaultClient c
 
 	// manually fill out the response because its not well formed
 	r := &response.Response{
-		Name:    "external-service",
-		URI:     uri,
-		Type:    "HTTP",
-		Headers: headers,
-		Cookies: cookies,
-		Body:    b,
-		Code:    code,
-		Error:   "",
+		Name:     "external-service",
+		URI:      uri,
+		Type:     "HTTP",
+		Headers:  headers,
+		Cookies:  cookies,
+		Body:     b,
+		Code:     code,
+		Duration: duration.String(),
+		StartTime: startTime.Format(timeFormat),
+		EndTime:   endTime.Format(timeFormat),
 	}
 
 	// set the local URI for the upstream
