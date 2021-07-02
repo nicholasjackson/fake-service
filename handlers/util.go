@@ -66,12 +66,17 @@ func workerExternalHTTP(ctx opentracing.SpanContext, uri string, defaultClient c
 	hr := l.CallHTTPUpstream(pr, httpReq, ctx)
 	defer hr.Finished()
 
-	code, resp, headers, cookies, err := defaultClient.Do(httpReq, pr)
+	code, resp, headers, cookies, err := defaultClient.Do(httpReq, nil)
 
 	hr.SetMetadata("response", strconv.Itoa(code))
 	hr.SetError(err)
 
-	b, _ := json.Marshal(externalBody{Response: string(resp)})
+	respString := string(resp)
+	if len(respString) > 256 {
+		respString = respString[0:256] + "..."
+	}
+
+	b, _ := json.Marshal(externalBody{Response: respString})
 
 	// manually fill out the response because its not well formed
 	r := &response.Response{
