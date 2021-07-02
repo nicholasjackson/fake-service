@@ -31,6 +31,7 @@ type Request struct {
 	message       string
 	duration      *timing.RequestDuration
 	upstreamURIs  []string
+	externalURIs  []string
 	workerCount   int
 	defaultClient client.HTTP
 	grpcClients   map[string]client.GRPC
@@ -44,6 +45,7 @@ func NewRequest(
 	name, message string,
 	duration *timing.RequestDuration,
 	upstreamURIs []string,
+	externalURIs []string,
 	workerCount int,
 	defaultClient client.HTTP,
 	grpcClients map[string]client.GRPC,
@@ -57,6 +59,7 @@ func NewRequest(
 		message:       message,
 		duration:      duration,
 		upstreamURIs:  upstreamURIs,
+		externalURIs:  externalURIs,
 		workerCount:   workerCount,
 		defaultClient: defaultClient,
 		grpcClients:   grpcClients,
@@ -111,6 +114,21 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		})
 
 		err := wp.Do(rq.upstreamURIs)
+
+		if err != nil {
+			upstreamError = err
+		}
+
+		for _, v := range wp.Responses() {
+			resp.AppendUpstream(v.URI, *v.Response)
+		}
+	}
+	if len(rq.externalURIs) > 0 {
+		wp := worker.New(rq.workerCount, func(uri string) (*response.Response, error) {
+			return workerHTTP(hq.Span.Context(), uri, rq.defaultClient, r, rq.log)
+		})
+
+		err := wp.Do(rq.externalURIs)
 
 		if err != nil {
 			upstreamError = err

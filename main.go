@@ -37,6 +37,9 @@ var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs 
 var upstreamAllowInsecure = env.Bool("UPSTREAM_ALLOW_INSECURE", false, false, "Allow calls to upstream servers, ignoring TLS certificate validation")
 var upstreamWorkers = env.Int("UPSTREAM_WORKERS", false, 1, "Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation")
 
+var externalServices = env.String("EXTERNAL_SERVICE_URLS", false, "", "Comma separated URIs of the external services to call")
+
+
 var serviceType = env.String("SERVER_TYPE", false, "http", "Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC")
 var message = env.String("MESSAGE", false, "Hello World", "Message to be returned from service")
 var name = env.String("NAME", false, "Service", "Name of the service")
@@ -256,6 +259,7 @@ func startupHTTP(
 		*message,
 		rd,
 		tidyURIs(*upstreamURIs),
+		tidyURIs(*externalServices),
 		*upstreamWorkers,
 		defaultClient,
 		grpcClients,

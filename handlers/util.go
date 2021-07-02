@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -40,6 +41,48 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 			// in this instance create a blank response with the error
 			l.Log().Error("Unable to read response JSON", "error", jsonerr)
 		}
+	}
+
+	// set the local URI for the upstream
+	r.URI = uri
+	r.Code = code
+	r.Headers = headers
+	r.Cookies = cookies
+
+	if err != nil {
+		r.Error = err.Error()
+	}
+
+	return r, err
+}
+
+type externalBody struct {
+	Response string
+}
+
+func workerExternalHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request, l *logging.Logger) (*response.Response, error) {
+	httpReq, _ := http.NewRequest("GET", uri, nil)
+
+	hr := l.CallHTTPUpstream(pr, httpReq, ctx)
+	defer hr.Finished()
+
+	code, resp, headers, cookies, err := defaultClient.Do(httpReq, pr)
+
+	hr.SetMetadata("response", strconv.Itoa(code))
+	hr.SetError(err)
+
+	b, _ := json.Marshal(externalBody{Response: string(resp)})
+
+	// manually fill out the response because its not well formed
+	r := &response.Response{
+		Name:    "external-service",
+		URI:     uri,
+		Type:    "HTTP",
+		Headers: headers,
+		Cookies: cookies,
+		Body:    b,
+		Code:    code,
+		Error:   "",
 	}
 
 	// set the local URI for the upstream
