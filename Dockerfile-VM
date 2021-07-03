@@ -1,9 +1,12 @@
 # This image contains Fake Service Consul and Envoy, it can be used to simulate a Virtual Machine containing the Consul Agent
 # and Envoy running as Daemon processes.
-FROM nicholasjackson/consul-envoy:v1.9.5-v1.16.0
+FROM nicholasjackson/consul-envoy:v1.9.5-v1.16.2 as base
 
 # Setup bash and supervisord etc
-RUN apk add --update bash supervisor curl vim jq 
+RUN apt-get update && \
+    apt-get install -y supervisor && \
+    rm -rf /var/lib/apt/lists/*
+    
 RUN sed -i 's/\/bin\/ash/\/bin\/bash/g' /etc/passwd
 
 RUN mkdir -p /etc/supervisor.d/
@@ -17,12 +20,29 @@ RUN chmod +x /prestart.sh
 # Setup the supervisor d file
 COPY fake-service.ini /etc/supervisor.d/fake-service.ini
 
-# Run supervisord
-RUN sed -i 's/;nodaemon=false/nodaemon=true/g' /etc/supervisord.conf
 
-# add fake service
-RUN mkdir app
-COPY ./bin/amd64/fake-service /app/fake-service
+# Copy AMD binaries
+FROM base AS image-amd64-
+
+COPY bin/linux/amd64/fake-service /app/fake-service
+RUN chmod +x /app/fake-service
+
+# Copy Arm 8 binaries
+FROM base AS image-arm64-
+
+COPY bin/linux/arm64/fake-service /app/fake-service
+RUN chmod +x /app/fake-service
+
+FROM image-${TARGETARCH}-${TARGETVARIANT}
+
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+ARG BUILDPLATFORM
+ARG BUILDARCH
+
+RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM $TARGETARCH $TARGETVARIANT"  
 
 # set default env vars so supervisor
 # does not crash on start
@@ -39,5 +59,6 @@ RUN mkdir /config
 # data directory for Consul
 RUN mkdir -p /etc/consul
 
+# Run supervisord in blocking mode
 ENTRYPOINT ["/usr/bin/supervisord"]
-CMD ["-c", "/etc/supervisord.conf"]
+CMD ["-c", "/etc/supervisor/supervisord.conf", "-n"]

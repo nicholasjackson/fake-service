@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-version=v0.22.5
-=======
-version=v0.22.6
->>>>>>> 2865e3916977be6c684ffaa62e1214a5cc586fcf
+version=v0.22.7
 
 protos:
 	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
@@ -14,27 +10,28 @@ build_ui:
 # Requires Packr to bundle assets
 build_linux: build_ui
 	packr2
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/amd64/fake-service
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/linux/amd64/fake-service
 	packr2 clean
 
 build_darwin: build_ui
 	packr2
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/darwin/fake-service
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/darwin/amd64/fake-service
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/darwin/arm64/fake-service
 	packr2 clean
 
 build_arm6: build_ui
 	packr2
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o bin/arm/6/fake-service
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o bin/linux/arm/6/fake-service
 	packr2 clean
 
 build_arm7: build_ui
 	packr2
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o bin/arm/7/fake-service
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o bin/linux/arm/7/fake-service
 	packr2 clean
 
 build_arm64: build_ui
 	packr2
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/arm64/fake-service
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/linux/arm64/fake-service
 	packr2 clean
 
 build_windows: build_ui
@@ -47,8 +44,17 @@ build_local: build_ui
 	go build -o bin/fake-service
 	packr2 clean
 
-build_docker_vm:	build_linux
-	docker build -t nicholasjackson/fake-service:vm-${version} -f Dockerfile-VM ./
+build_docker_vm:	build_linux build_arm64
+	docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+	docker buildx create --name multi || true
+	docker buildx use multi
+	docker buildx inspect --bootstrap
+	docker buildx build --platform linux/arm64,linux/amd64 \
+		-t nicholasjackson/fake-service:vm-${version} \
+		-f ./Dockerfile-VM \
+    . \
+		--push
+	docker buildx rm multi
 
 build_docker_multi: build_linux build_arm7 build_arm6 build_arm64
 	docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
