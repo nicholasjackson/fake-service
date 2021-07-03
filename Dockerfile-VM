@@ -9,8 +9,6 @@ RUN apt-get update && \
     
 RUN sed -i 's/\/bin\/ash/\/bin\/bash/g' /etc/passwd
 
-RUN mkdir -p /etc/supervisor.d/
-
 COPY entrypoint.sh /entrypoint.sh
 COPY prestart.sh /prestart.sh
 
@@ -18,7 +16,7 @@ RUN chmod +x /entrypoint.sh
 RUN chmod +x /prestart.sh
 
 # Setup the supervisor d file
-COPY fake-service.ini /etc/supervisor.d/fake-service.ini
+COPY fake-service.conf /etc/supervisor/conf.d/fake-service.conf
 
 
 # Copy AMD binaries
