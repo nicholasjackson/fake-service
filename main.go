@@ -70,9 +70,9 @@ var rateLimitRPS = env.Float64("RATE_LIMIT", false, 0.0, "Rate in req/second aft
 var rateLimitCode = env.Int("RATE_LIMIT_CODE", false, 503, "Code to return when service call is rate limited")
 
 // load generation
-var loadCPUAllocated = env.Float64("LOAD_CPU_ALLOCATED", false, 0, "MHz of CPU allocated to the service, when specified, load percentage is a percentage of CPU allocated")
-var loadCPUClockSpeed = env.Float64("LOAD_CPU_CLOCK_SPEED", false, 1000, "MHz of a Single logical core, default 1000Mhz")
-var loadCPUCores = env.Float64("LOAD_CPU_CORES", false, -1, "Number of cores to generate fake CPU load over, by default fake-service will use all cores")
+var loadCPUAllocated = env.Int("LOAD_CPU_ALLOCATED", false, 0, "MHz of CPU allocated to the service, when specified, load percentage is a percentage of CPU allocated")
+var loadCPUClockSpeed = env.Int("LOAD_CPU_CLOCK_SPEED", false, 1000, "MHz of a Single logical core, default 1000Mhz")
+var loadCPUCores = env.Int("LOAD_CPU_CORES", false, -1, "Number of cores to generate fake CPU load over, by default fake-service will use all cores")
 var loadCPUPercentage = env.Float64("LOAD_CPU_PERCENTAGE", false, 0, "Percentage of CPU cores to consume as a percentage. I.e: 50, 50% load for LOAD_CPU_CORES. If LOAD_CPU_ALLOCATED is not specified CPU percentage is based on the Total CPU available")
 
 var loadMemoryAllocated = env.Int("LOAD_MEMORY_PER_REQUEST", false, 0, "Memory in bytes consumed per request")
@@ -175,11 +175,11 @@ func main() {
 	// 100 / (1000 * 10) * 10 = 1
 
 	if *loadCPUCores == -1 {
-		*loadCPUCores = float64(runtime.NumCPU())
+		*loadCPUCores = runtime.NumCPU()
 	}
 
 	if *loadCPUAllocated != 0 {
-		*loadCPUPercentage = *loadCPUAllocated / (*loadCPUClockSpeed * *loadCPUCores) * *loadCPUPercentage
+		*loadCPUPercentage = float64(*loadCPUAllocated) / (float64(*loadCPUClockSpeed) * float64(*loadCPUCores)) * float64(*loadCPUPercentage)
 	}
 
 	// create a generator that will be used to create memory and CPU load per request

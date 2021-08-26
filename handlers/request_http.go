@@ -121,13 +121,6 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// service time is equal to the randomised time - the current time take
-	d := rq.duration.Calculate()
-	et := time.Now().Sub(ts)
-	rd := d - et
-
-	// set the start end end time
-
 	if upstreamError != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		resp.Code = http.StatusInternalServerError
@@ -136,27 +129,28 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		hq.SetMetadata("response", strconv.Itoa(http.StatusInternalServerError))
 		hq.SetError(upstreamError)
 	} else {
-		// randomize the time the request takes if no error
-		lp := rq.log.SleepService(hq.Span, rd)
-
+		// service time is equal to the randomised time - the current time take
+		d := rq.duration.Calculate()
+		et := time.Now().Sub(ts)
+		rd := d - et
 		if rd > 0 {
+			// randomize the time the request takes if no error
+			lp := rq.log.SleepService(hq.Span, rd)
 			time.Sleep(rd)
+			lp.Finished()
 		}
 
-		lp.Finished()
 		resp.Code = http.StatusOK
 
 		// log response code
 		hq.SetMetadata("response", strconv.Itoa(http.StatusOK))
 	}
 
-	// caclulcate total elapsed time including delay
+	// compute total elapsed time including delay
 	te := time.Now()
-	et = te.Sub(ts)
-
 	resp.StartTime = ts.Format(timeFormat)
 	resp.EndTime = te.Format(timeFormat)
-	resp.Duration = et.String()
+	resp.Duration = te.Sub(ts).String()
 
 	// add the response body
 	if strings.HasPrefix(rq.message, "{") {
