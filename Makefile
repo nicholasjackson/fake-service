@@ -2,7 +2,9 @@ DOCKER_REGISTRY ?= docker.io/nicholasjackson
 VERSION=v0.22.7
 
 protos:
-	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
+	 protoc --proto_path grpc/protos --go_out=grpc/api --go_opt=paths=source_relative \
+    --go-grpc_out=grpc/api --go-grpc_opt=paths=source_relative \
+    api.proto
 
 # Requires Yarn and Node
 build_ui:

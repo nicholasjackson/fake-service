@@ -22,16 +22,18 @@ import (
 
 // FakeServer implements the gRPC interface
 type FakeServer struct {
-	name          string
-	message       string
-	duration      *timing.RequestDuration
-	upstreamURIs  []string
-	workerCount   int
-	defaultClient client.HTTP
-	grpcClients   map[string]client.GRPC
-	errorInjector *errors.Injector
-	loadGenerator *load.Generator
-	log           *logging.Logger
+	api.UnimplementedFakeServiceServer
+	name             string
+	message          string
+	duration         *timing.RequestDuration
+	upstreamURIs     []string
+	workerCount      int
+	defaultClient    client.HTTP
+	grpcClients      map[string]client.GRPC
+	errorInjector    *errors.Injector
+	loadGenerator    *load.Generator
+	log              *logging.Logger
+	requestGenerator load.RequestGenerator
 }
 
 // NewFakeServer creates a new instance of FakeServer
@@ -45,24 +47,27 @@ func NewFakeServer(
 	i *errors.Injector,
 	loadGenerator *load.Generator,
 	l *logging.Logger,
+	requestGenerator load.RequestGenerator,
 ) *FakeServer {
 
 	return &FakeServer{
-		name:          name,
-		message:       message,
-		duration:      duration,
-		upstreamURIs:  upstreamURIs,
-		workerCount:   workerCount,
-		defaultClient: defaultClient,
-		grpcClients:   grpcClients,
-		errorInjector: i,
-		loadGenerator: loadGenerator,
-		log:           l,
+		UnimplementedFakeServiceServer: api.UnimplementedFakeServiceServer{},
+		name:                           name,
+		message:                        message,
+		duration:                       duration,
+		upstreamURIs:                   upstreamURIs,
+		workerCount:                    workerCount,
+		defaultClient:                  defaultClient,
+		grpcClients:                    grpcClients,
+		errorInjector:                  i,
+		loadGenerator:                  loadGenerator,
+		log:                            l,
+		requestGenerator:               requestGenerator,
 	}
 }
 
-// Handle implmements the FakeServer Handle interface method
-func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, error) {
+// Handle implements the FakeServer Handle interface method
+func (f *FakeServer) Handle(ctx context.Context, in *api.Request) (*api.Response, error) {
 
 	// start timing the service this is used later for the total request time
 	ts := time.Now()
@@ -96,12 +101,13 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	// if we need to create upstream requests create a worker pool
 	var upstreamError error
 	if len(f.upstreamURIs) > 0 {
+		data := f.requestGenerator.Generate()
 		wp := worker.New(f.workerCount, func(uri string) (*response.Response, error) {
 			if strings.HasPrefix(uri, "http://") {
-				return workerHTTP(hq.Span.Context(), uri, f.defaultClient, nil, f.log)
+				return workerHTTP(hq.Span.Context(), uri, f.defaultClient, nil, f.log, data)
 			}
 
-			return workerGRPC(hq.Span.Context(), uri, f.grpcClients, f.log)
+			return workerGRPC(hq.Span.Context(), uri, f.grpcClients, f.log, data)
 		})
 
 		err := wp.Do(f.upstreamURIs)

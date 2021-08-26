@@ -28,15 +28,16 @@ type Request struct {
 	// name of the service
 	name string
 	// message to return to caller
-	message       string
-	duration      *timing.RequestDuration
-	upstreamURIs  []string
-	workerCount   int
-	defaultClient client.HTTP
-	grpcClients   map[string]client.GRPC
-	errorInjector *errors.Injector
-	loadGenerator *load.Generator
-	log           *logging.Logger
+	message          string
+	duration         *timing.RequestDuration
+	upstreamURIs     []string
+	workerCount      int
+	defaultClient    client.HTTP
+	grpcClients      map[string]client.GRPC
+	errorInjector    *errors.Injector
+	loadGenerator    *load.Generator
+	log              *logging.Logger
+	requestGenerator load.RequestGenerator
 }
 
 // NewRequest creates a new request handler
@@ -50,19 +51,21 @@ func NewRequest(
 	errorInjector *errors.Injector,
 	loadGenerator *load.Generator,
 	log *logging.Logger,
+	requestGenerator load.RequestGenerator,
 ) *Request {
 
 	return &Request{
-		name:          name,
-		message:       message,
-		duration:      duration,
-		upstreamURIs:  upstreamURIs,
-		workerCount:   workerCount,
-		defaultClient: defaultClient,
-		grpcClients:   grpcClients,
-		errorInjector: errorInjector,
-		loadGenerator: loadGenerator,
-		log:           log,
+		name:             name,
+		message:          message,
+		duration:         duration,
+		upstreamURIs:     upstreamURIs,
+		workerCount:      workerCount,
+		defaultClient:    defaultClient,
+		grpcClients:      grpcClients,
+		errorInjector:    errorInjector,
+		loadGenerator:    loadGenerator,
+		log:              log,
+		requestGenerator: requestGenerator,
 	}
 }
 
@@ -102,12 +105,13 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	// if we need to create upstream requests create a worker pool
 	var upstreamError error
 	if len(rq.upstreamURIs) > 0 {
+		body := rq.requestGenerator.Generate()
 		wp := worker.New(rq.workerCount, func(uri string) (*response.Response, error) {
 			if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
-				return workerHTTP(hq.Span.Context(), uri, rq.defaultClient, r, rq.log)
+				return workerHTTP(hq.Span.Context(), uri, rq.defaultClient, r, rq.log, body)
 			}
 
-			return workerGRPC(hq.Span.Context(), uri, rq.grpcClients, rq.log)
+			return workerGRPC(hq.Span.Context(), uri, rq.grpcClients, rq.log, body)
 		})
 
 		err := wp.Do(rq.upstreamURIs)

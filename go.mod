@@ -4,7 +4,12 @@ go 1.16
 
 require (
 	github.com/DataDog/datadog-go v3.4.0+incompatible
+<<<<<<< HEAD
 	github.com/golang/protobuf v1.5.2
+=======
+	github.com/gobuffalo/logger v1.0.4 // indirect
+	github.com/gobuffalo/packr/v2 v2.8.1
+>>>>>>> Add a way to simulate query payloads of varying size
 	github.com/gorilla/handlers v1.4.2
 	github.com/hashicorp/go-hclog v0.9.2
 	github.com/kr/pretty v0.1.0 // indirect
@@ -17,9 +22,17 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tinylib/msgp v1.1.0 // indirect
 	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
+<<<<<<< HEAD
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 	google.golang.org/grpc v1.38.0
+=======
+	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
+	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
+	google.golang.org/grpc v1.38.0
+	google.golang.org/protobuf v1.26.0
+>>>>>>> Add a way to simulate query payloads of varying size
 	gopkg.in/DataDog/dd-trace-go.v1 v1.18.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect

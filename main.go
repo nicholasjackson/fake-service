@@ -87,6 +87,10 @@ var loadCPUPercentage = env.Float64("LOAD_CPU_PERCENTAGE", false, 0, "Percentage
 var loadMemoryAllocated = env.Int("LOAD_MEMORY_PER_REQUEST", false, 0, "Memory in bytes consumed per request")
 var loadMemoryVariance = env.Int("LOAD_MEMORY_VARIANCE", false, 0, "Percentage variance of the memory consumed per request, i.e with a value of 50 = 50%, and given a LOAD_MEMORY_PER_REQUEST of 1024 bytes, actual consumption per request would be in the range 516 - 1540 bytes")
 
+var loadRequestBody = env.String("LOAD_REQUEST_BODY", false, "", "The body of the request to send (ignores other LOAD_REQUEST_* params if this is set")
+var loadRequestSize = env.Int("LOAD_REQUEST_SIZE", false, 0, "Size of the request sent")
+var loadRequestVariance = env.Int("LOAD_REQUEST_VARIANCE", false, 0, "Percentage variance of the request size")
+
 // metrics / tracing / logging
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
 
@@ -109,6 +113,7 @@ var healthResponseCode = env.Int("HEALTH_CHECK_RESPONSE_CODE", false, 200, "Resp
 var readySuccessResponseCode = env.Int("READY_CHECK_RESPONSE_SUCCESS_CODE", false, 200, "Response code returned from the HTTP readiness handler `/ready` after the response delay has elapsed")
 var readyFailureResponseCode = env.Int("READY_CHECK_RESPONSE_FAILURE_CODE", false, 503, "Response code returned from the HTTP readiness handler `/ready` before the response delay has elapsed, this simulates the response code a service would return while starting")
 var readyResponseDelay = env.Duration("READY_CHECK_RESPONSE_DELAY", false, 0*time.Second, "Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE")
+var seed = env.Int("RAND_SEED", false, int(time.Now().Unix()), "A seed to initialize the random number generators")
 
 var version = "dev"
 
@@ -160,6 +165,7 @@ func main() {
 	}
 
 	logger := logging.NewLogger(metrics, hclog.New(lo), sdf)
+	logger.Log().Info("Using seed", "seed", *seed)
 
 	requestDuration := timing.NewRequestDuration(
 		*timing50Percentile,
@@ -195,6 +201,7 @@ func main() {
 
 	// create a generator that will be used to create memory and CPU load per request
 	generator := load.NewGenerator(*loadCPUCores, *loadCPUPercentage, *loadMemoryAllocated, *loadMemoryVariance, logger.Log().Named("load_generator"))
+	requestGenerator := load.NewRequestGenerator(*loadRequestBody, *loadRequestSize, *loadRequestVariance, int64(*seed))
 
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest, *upstreamRequestTimeout, *upstreamAllowInsecure)
@@ -221,9 +228,9 @@ func main() {
 
 	switch *serviceType {
 	case "http":
-		httpServer = startupHTTP(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient)
+		httpServer = startupHTTP(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient, requestGenerator)
 	case "grpc":
-		grpcServer = startupGRPC(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient)
+		grpcServer = startupGRPC(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient, requestGenerator)
 	}
 
 	// trap sigterm or interupt and gracefully shutdown the server
@@ -271,6 +278,7 @@ func startupHTTP(
 	generator *load.Generator,
 	grpcClients map[string]client.GRPC,
 	defaultClient client.HTTP,
+	requestGenerator load.RequestGenerator,
 ) *http.Server {
 
 	rq := handlers.NewRequest(
@@ -284,6 +292,7 @@ func startupHTTP(
 		errorInjector,
 		generator,
 		logger,
+		requestGenerator,
 	)
 
 	hh := handlers.NewHealth(logger, *healthResponseCode)
@@ -361,6 +370,7 @@ func startupGRPC(
 	generator *load.Generator,
 	grpcClients map[string]client.GRPC,
 	defaultClient client.HTTP,
+	requestGenerator load.RequestGenerator,
 ) *grpc.Server {
 
 	lis, err := net.Listen("tcp", *listenAddress)
@@ -401,6 +411,7 @@ func startupGRPC(
 		errorInjector,
 		generator,
 		logger,
+		requestGenerator,
 	)
 
 	api.RegisterFakeServiceServer(grpcServer, fakeServer)
