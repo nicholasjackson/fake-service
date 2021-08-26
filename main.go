@@ -2,17 +2,19 @@ package main
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"runtime"
 	"strings"
 	"time"
 
-	"github.com/gobuffalo/packr/v2"
 	"github.com/hashicorp/go-hclog"
 	"github.com/nicholasjackson/env"
 	"github.com/nicholasjackson/fake-service/client"
@@ -242,6 +244,15 @@ func main() {
 	}
 }
 
+//go:embed ui/build
+var uiFiles embed.FS
+// An fs that adds the ui/build prefix to all requested files
+type embedFs struct {
+}
+func (e *embedFs) Open(name string) (fs.File, error) {
+	return uiFiles.Open(path.Join("ui/build", name))
+}
+
 func startupHTTP(
 	logger *logging.Logger,
 	rd *timing.RequestDuration,
@@ -271,13 +282,7 @@ func startupHTTP(
 
 	// add the static files
 	logger.Log().Info("Adding handler for UI static files")
-	box := packr.New("ui", "./ui/build")
-	for _, f := range box.List() {
-		logger.Log().Info("File", "path", f)
-	}
-
-	// Add the User interface handler
-	mux.Handle("/ui/", http.StripPrefix("/ui", http.FileServer(box)))
+	mux.Handle("/ui/", http.StripPrefix("/ui", http.FileServer(http.FS(&embedFs{}))))
 
 	// Add the generic health and ready handlers
 	mux.HandleFunc("/health", hh.Handle)
