@@ -103,7 +103,7 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	var upstreamError error
 	if len(rq.upstreamURIs) > 0 {
 		wp := worker.New(rq.workerCount, func(uri string) (*response.Response, error) {
-			if strings.HasPrefix(uri, "http://") {
+			if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
 				return workerHTTP(hq.Span.Context(), uri, rq.defaultClient, r, rq.log)
 			}
 
