@@ -189,6 +189,34 @@ func TestReturnsErrorWithHTTPUpstreamHandleError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, mr.UpstreamCalls["http://something.com"].Code)
 }
 
+func TestRequestCompletesWithHTTPSUpstreams(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
+	rr := httptest.NewRecorder()
+	h, c, _ := setupRequest(t, []string{"https://test.com"}, 0)
+
+	// setup the upstream response
+	c.On("Do", mock.Anything, mock.Anything).Return(http.StatusOK, []byte(`{"name": "upstream", "body": "OK"}`), nil)
+
+	h.Handle(rr, r)
+
+	c.AssertCalled(t, "Do", mock.Anything, mock.Anything)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	mr := response.Response{}
+	mr.FromJSON([]byte(rr.Body.String()))
+
+	c.AssertNotCalled(t, "Do", mock.Anything)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "test", mr.Name)
+
+	d, err := mr.Body.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, "\"hello world\"", string(d))
+
+	assert.Len(t, mr.UpstreamCalls, 1)
+	assert.Equal(t, "upstream", mr.UpstreamCalls["https://test.com"].Name)
+	assert.Equal(t, "https://test.com", mr.UpstreamCalls["https://test.com"].URI)
+}
+
 func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
 	rr := httptest.NewRecorder()
