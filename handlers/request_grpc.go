@@ -115,11 +115,6 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		}
 	}
 
-	// service time is equal to the randomised time - the current time take
-	d := f.duration.Calculate()
-	et := time.Now().Sub(ts)
-	rd := d - et
-
 	if upstreamError != nil {
 		resp.Code = int(codes.Internal)
 		resp.Error = upstreamError.Error()
@@ -134,25 +129,25 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		return nil, s.Err()
 	}
 
-	// randomize the time the request takes
-	lp := f.log.SleepService(hq.Span, rd)
-
+	// service time is equal to the randomised time - the current time take
+	d := f.duration.Calculate()
+	et := time.Now().Sub(ts)
+	rd := d - et
 	if rd > 0 {
+		// randomize the time the request takes
+		lp := f.log.SleepService(hq.Span, rd)
 		time.Sleep(rd)
+		lp.Finished()
 	}
-
-	lp.Finished()
 
 	// log response code
 	hq.SetMetadata("response", "0")
 
-	// caculate total elapsed time including duration
+	// compute total elapsed time including duration
 	te := time.Now()
-	et = te.Sub(ts)
-
 	resp.StartTime = ts.Format(timeFormat)
 	resp.EndTime = te.Format(timeFormat)
-	resp.Duration = et.String()
+	resp.Duration = te.Sub(ts).String()
 
 	// add the response body if there is no upstream error
 	if upstreamError == nil {
