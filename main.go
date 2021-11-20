@@ -49,8 +49,15 @@ var allowedOrigins = env.String("ALLOWED_ORIGINS", false, "*", "Comma separated 
 var allowedHeaders = env.String("ALLOWED_HEADERS", false, "Accept,Accept-Language,Content-Language,Origin,Content-Type", "Comma separated list of allowed headers for cors requests")
 var allowCredentials = env.Bool("ALLOW_CREDENTIALS", false, false, "Are credentials allowed for CORS requests")
 
+// Server configuration
+var serverKeepAlives = env.Bool("HTTP_SERVER_KEEP_ALIVES", false, false, "Enables the HTTP servers handling of keep alives.")
+var serverReadTimeout = env.Duration("HTTP_SERVER_READ_TIMEOUT", false, time.Duration(5*time.Second), "Maximum duration for reading an entire HTTP request, if zero no read timeout is used.")
+var serverReadHeaderTimeout = env.Duration("HTTP_SERVER_READHEADER_TIMEOUT", false, time.Duration(0*time.Second), "Maximum duration for reading the HTTP headers, if zero read timeout is used.")
+var serverWriteTimeout = env.Duration("HTTP_SERVER_WRITE_TIMEOUT", false, time.Duration(10*time.Second), "Maximum duration for writing HTTP body, if zero no write timeout is used.")
+var serverIdleTimeout = env.Duration("HTTP_SERVER_IDLE_TIMEOUT", false, time.Duration(30*time.Second), "Maximum duration to wait for next request when HTTP Keep alives are used.")
+
 // Upstream client configuration
-var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, false, "Enable HTTP connection keep alives for upstream calls, also enables the HTTP servers handling of keep alives.")
+var upstreamClientKeepAlives = env.Bool("HTTP_CLIENT_KEEP_ALIVES", false, false, "Enable HTTP connection keep alives for upstream calls.")
 var upstreamAppendRequest = env.Bool("HTTP_CLIENT_APPEND_REQUEST", false, true, "When true the path, querystring, and any headers sent to the service will be appended to any upstream calls")
 var upstreamRequestTimeout = env.Duration("HTTP_CLIENT_REQUEST_TIMEOUT", false, 30*time.Second, "Max time to wait before timeout for upstream requests, default 30s")
 
@@ -82,11 +89,13 @@ var loadMemoryVariance = env.Int("LOAD_MEMORY_VARIANCE", false, 0, "Percentage v
 
 // metrics / tracing / logging
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
+
 var datadogTracingEndpointHost = env.String("TRACING_DATADOG_HOST", false, "", "Hostname or IP for Datadog tracing collector")
 var datadogTracingEndpointPort = env.String("TRACING_DATADOG_PORT", false, "8126", "Port for Datadog tracing collector")
 var datadogMetricsEndpointHost = env.String("METRICS_DATADOG_HOST", false, "", "Hostname or IP for Datadog metrics collector")
 var datadogMetricsEndpointPort = env.String("METRICS_DATADOG_PORT", false, "8125", "Port for Datadog metrics collector")
 var datadogMetricsEnvironment = env.String("METRICS_DATADOG_ENVIRONMENT", false, "production", "Environment tag for Datadog metrics collector")
+
 var logFormat = env.String("LOG_FORMAT", false, "text", "Log file format. [text|json]")
 var logLevel = env.String("LOG_LEVEL", false, "info", "Log level for output. [info|debug|trace|warn|error]")
 var logOutput = env.String("LOG_OUTPUT", false, "stdout", "Location to write log output, default is stdout, e.g. /var/log/web.log")
@@ -246,9 +255,11 @@ func main() {
 
 //go:embed ui/build
 var uiFiles embed.FS
+
 // An fs that adds the ui/build prefix to all requested files
 type embedFs struct {
 }
+
 func (e *embedFs) Open(name string) (fs.File, error) {
 	return uiFiles.Open(path.Join("ui/build", name))
 }
@@ -315,8 +326,16 @@ func startupHTTP(
 	ch := cors.CORS(corsOptions...)
 
 	var err error
-	server := &http.Server{Addr: *listenAddress, Handler: ch(mux)}
-	server.SetKeepAlivesEnabled(*upstreamClientKeepAlives)
+	server := &http.Server{
+		Addr:              *listenAddress,
+		ReadTimeout:       *serverReadTimeout,
+		ReadHeaderTimeout: *serverReadHeaderTimeout,
+		WriteTimeout:      *serverWriteTimeout,
+		IdleTimeout:       *serverIdleTimeout,
+		Handler:           ch(mux),
+		ErrorLog:          logger.Log().StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
+	}
+	server.SetKeepAlivesEnabled(*serverKeepAlives)
 
 	go func() {
 		if *tlsCertificate != "" && *tlsKey != "" {
