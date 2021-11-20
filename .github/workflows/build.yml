@@ -58,7 +58,6 @@ jobs:
 
       - name: Get dependencies
         run: |
-          go get -u github.com/gobuffalo/packr/v2/packr2
           go get -v -t ./...
 
       - name: Unit Test
@@ -67,7 +66,6 @@ jobs:
 
       - name: Build
         run: |
-          packr2
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/linux/amd64/fake-service
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/linux/arm64/fake-service
           CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o bin/linux/arm6/fake-service
