@@ -31,6 +31,16 @@ Environment variables:
        Comma separated list of allowed headers for CORS requests
   ALLOW_CREDENTIALS  default: 'false'
        Are credentials allowed for CORS requests
+  HTTP_SERVER_KEEP_ALIVES  default: 'false'
+       Enables the HTTP servers handling of keep alives.
+  HTTP_SERVER_READ_TIMEOUT  default: '5s'
+       Maximum duration for reading an entire HTTP request, if zero no read timeout is used.
+  HTTP_SERVER_READHEADER_TIMEOUT  default: '0s'
+       Maximum duration for reading the HTTP headers, if zero read timeout is used.
+  HTTP_SERVER_WRITE_TIMEOUT  default: '10s'
+       Maximum duration for writing HTTP body, if zero no write timeout is used.
+  HTTP_SERVER_IDLE_TIMEOUT  default: '30s'
+       Maximum duration to wait for next request when HTTP Keep alives are used.
   HTTP_CLIENT_KEEP_ALIVES  default: 'false'
        Enable HTTP connection keep alives for upstream calls
   HTTP_CLIENT_REQUEST_TIMEOUT  default: '30s'
