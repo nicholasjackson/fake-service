@@ -17,6 +17,12 @@ Environment variables:
        Comma separated URIs of the upstream services to call
   UPSTREAM_WORKERS  default: '1'
        Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation
+  UPSTREAM_REQUEST_BODY  default: no default
+       Request body to send to send with upstream requests, NOTE: UPSTREAM_REQUEST_SIZE and UPSTREAM_REQUEST_VARIANCE are ignored if this is set
+  UPSTREAM_REQUEST_SIZE  default: '0'
+       Size of the randomly generated request body to send with upstream requests
+  UPSTREAM_REQUEST_VARIANCE  default: '0'
+       Percentage variance of the randomly generated request body
   SERVER_TYPE  default: 'http'
        Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC
   MESSAGE  default: 'Hello World'
@@ -106,6 +112,8 @@ Environment variables:
        Response code returned from the HTTP readiness handler `/ready` before the response delay has elapsed, this simulates the response code a service would return while starting
   READY_CHECK_RESPONSE_DELAY  default: '0s'
        Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE
+  RAND_SEED  default: '1637512822'
+       A seed to initialize the random number generators
 ```
 
 ## Tracing

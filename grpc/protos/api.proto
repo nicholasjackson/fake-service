@@ -1,10 +1,13 @@
 syntax = "proto3";
+option go_package = "github.com/nicholasjackson/fake-service/grpc/api";
 
 service FakeService {
-  rpc Handle(Nil) returns (Response) {}
+  rpc Handle(Request) returns (Response) {}
 }
 
-message Nil {}
+message Request {
+  bytes data = 1;
+}
 
 message Response {
   string Message = 1;

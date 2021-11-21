@@ -55,6 +55,7 @@ func setupRequest(t *testing.T, uris []string, errorRate float64) (*Request, *cl
 		errorInjector: i,
 		loadGenerator: lg,
 		log:           l,
+		requestGenerator: load.NoopRequestGenerator,
 	}, c, grpcClients
 }
 

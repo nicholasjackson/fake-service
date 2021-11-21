@@ -45,7 +45,7 @@ func setupFakeServer(t *testing.T, uris []string, errorRate float64) (*FakeServe
 	i := errors.NewInjector(l.Log(), errorRate, int(codes.Internal), "http_error", 0, 0, 0)
 	lg := load.NewGenerator(0, 0, 0, 0, hclog.Default())
 
-	return NewFakeServer("test", "hello world", d, uris, 1, c, grpcClients, i, lg, l), c, grpcClients
+	return NewFakeServer("test", "hello world", d, uris, 1, c, grpcClients, i, lg, l, load.NoopRequestGenerator), c, grpcClients
 }
 
 func TestGRPCServiceHandlesRequestWithNoUpstream(t *testing.T) {

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"net/http"
@@ -18,8 +19,11 @@ import (
 
 const timeFormat = "2006-01-02T15:04:05.000000"
 
-func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request, l *logging.Logger) (*response.Response, error) {
-	httpReq, _ := http.NewRequest("GET", uri, nil)
+func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request, l *logging.Logger, content []byte) (*response.Response, error) {
+	httpReq, _ := http.NewRequest(http.MethodGet, uri, nil)
+	if len(content) > 0 {
+		httpReq, _ = http.NewRequest(http.MethodPost, uri, bytes.NewReader(content))
+	}
 
 	hr := l.CallHTTPUpstream(pr, httpReq, ctx)
 	defer hr.Finished()
@@ -55,12 +59,12 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 	return r, err
 }
 
-func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC, l *logging.Logger) (*response.Response, error) {
+func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]client.GRPC, l *logging.Logger, content []byte) (*response.Response, error) {
 	hr, outCtx := l.CallGRCPUpstream(uri, ctx)
 	defer hr.Finished()
 
 	c := grpcClients[uri]
-	resp, headers, err := c.Handle(outCtx, &api.Nil{})
+	resp, headers, err := c.Handle(outCtx, &api.Request{Data: content})
 
 	r := &response.Response{}
 	if err != nil {

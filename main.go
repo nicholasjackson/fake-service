@@ -39,6 +39,10 @@ var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs 
 var upstreamAllowInsecure = env.Bool("UPSTREAM_ALLOW_INSECURE", false, false, "Allow calls to upstream servers, ignoring TLS certificate validation")
 var upstreamWorkers = env.Int("UPSTREAM_WORKERS", false, 1, "Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation")
 
+var upstreamRequestBody = env.String("UPSTREAM_REQUEST_BODY", false, "", "Request body to send to send with upstream requests, NOTE: UPSTREAM_REQUEST_SIZE and UPSTREAM_REQUEST_VARIANCE are ignored if this is set")
+var upstreamRequestSize = env.Int("UPSTREAM_REQUEST_SIZE", false, 0, "Size of the randomly generated request body to send with upstream requests")
+var upstreamRequestVariance = env.Int("UPSTREAM_REQUEST_VARIANCE", false, 0, "Percentage variance of the randomly generated request body")
+
 var serviceType = env.String("SERVER_TYPE", false, "http", "Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC")
 var message = env.String("MESSAGE", false, "Hello World", "Message to be returned from service")
 var name = env.String("NAME", false, "Service", "Name of the service")
@@ -109,6 +113,7 @@ var healthResponseCode = env.Int("HEALTH_CHECK_RESPONSE_CODE", false, 200, "Resp
 var readySuccessResponseCode = env.Int("READY_CHECK_RESPONSE_SUCCESS_CODE", false, 200, "Response code returned from the HTTP readiness handler `/ready` after the response delay has elapsed")
 var readyFailureResponseCode = env.Int("READY_CHECK_RESPONSE_FAILURE_CODE", false, 503, "Response code returned from the HTTP readiness handler `/ready` before the response delay has elapsed, this simulates the response code a service would return while starting")
 var readyResponseDelay = env.Duration("READY_CHECK_RESPONSE_DELAY", false, 0*time.Second, "Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE")
+var seed = env.Int("RAND_SEED", false, int(time.Now().Unix()), "A seed to initialize the random number generators")
 
 var version = "dev"
 
@@ -160,6 +165,7 @@ func main() {
 	}
 
 	logger := logging.NewLogger(metrics, hclog.New(lo), sdf)
+	logger.Log().Info("Using seed", "seed", *seed)
 
 	requestDuration := timing.NewRequestDuration(
 		*timing50Percentile,
@@ -195,6 +201,7 @@ func main() {
 
 	// create a generator that will be used to create memory and CPU load per request
 	generator := load.NewGenerator(*loadCPUCores, *loadCPUPercentage, *loadMemoryAllocated, *loadMemoryVariance, logger.Log().Named("load_generator"))
+	requestGenerator := load.NewRequestGenerator(*upstreamRequestBody, *upstreamRequestSize, *upstreamRequestVariance, int64(*seed))
 
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest, *upstreamRequestTimeout, *upstreamAllowInsecure)
@@ -221,9 +228,9 @@ func main() {
 
 	switch *serviceType {
 	case "http":
-		httpServer = startupHTTP(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient)
+		httpServer = startupHTTP(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient, requestGenerator)
 	case "grpc":
-		grpcServer = startupGRPC(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient)
+		grpcServer = startupGRPC(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient, requestGenerator)
 	}
 
 	// trap sigterm or interupt and gracefully shutdown the server
@@ -271,6 +278,7 @@ func startupHTTP(
 	generator *load.Generator,
 	grpcClients map[string]client.GRPC,
 	defaultClient client.HTTP,
+	requestGenerator load.RequestGenerator,
 ) *http.Server {
 
 	rq := handlers.NewRequest(
@@ -284,6 +292,7 @@ func startupHTTP(
 		errorInjector,
 		generator,
 		logger,
+		requestGenerator,
 	)
 
 	hh := handlers.NewHealth(logger, *healthResponseCode)
@@ -361,6 +370,7 @@ func startupGRPC(
 	generator *load.Generator,
 	grpcClients map[string]client.GRPC,
 	defaultClient client.HTTP,
+	requestGenerator load.RequestGenerator,
 ) *grpc.Server {
 
 	lis, err := net.Listen("tcp", *listenAddress)
@@ -401,6 +411,7 @@ func startupGRPC(
 		errorInjector,
 		generator,
 		logger,
+		requestGenerator,
 	)
 
 	api.RegisterFakeServiceServer(grpcServer, fakeServer)
