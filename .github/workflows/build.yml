@@ -122,7 +122,7 @@ jobs:
           docker buildx build --platform linux/arm64,linux/amd64 \
             -t nicholasjackson/fake-service:vm-${GITHUB_REF##*/} \
             -f ./Dockerfile-VM \
-            ./bin \
+            . \
             --push
 
       - name: Zip binaries

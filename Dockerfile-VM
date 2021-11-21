@@ -22,13 +22,13 @@ COPY fake-service.conf /etc/supervisor/conf.d/fake-service.conf
 # Copy AMD binaries
 FROM base AS image-amd64-
 
-COPY linux/amd64/fake-service /app/fake-service
+COPY bin/linux/amd64/fake-service /app/fake-service
 RUN chmod +x /app/fake-service
 
 # Copy Arm 8 binaries
 FROM base AS image-arm64-
 
-COPY linux/arm64/fake-service /app/fake-service
+COPY bin/linux/arm64/fake-service /app/fake-service
 RUN chmod +x /app/fake-service
 
 FROM image-${TARGETARCH}-${TARGETVARIANT}
