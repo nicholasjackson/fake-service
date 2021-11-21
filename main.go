@@ -39,6 +39,10 @@ var upstreamURIs = env.String("UPSTREAM_URIS", false, "", "Comma separated URIs 
 var upstreamAllowInsecure = env.Bool("UPSTREAM_ALLOW_INSECURE", false, false, "Allow calls to upstream servers, ignoring TLS certificate validation")
 var upstreamWorkers = env.Int("UPSTREAM_WORKERS", false, 1, "Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation")
 
+var upstreamRequestBody = env.String("UPSTREAM_REQUEST_BODY", false, "", "Request body to send to send with upstream requests, NOTE: UPSTREAM_REQUEST_SIZE and UPSTREAM_REQUEST_VARIANCE are ignored if this is set")
+var upstreamRequestSize = env.Int("UPSTREAM_REQUEST_SIZE", false, 0, "Size of the randomly generated request body to send with upstream requests")
+var upstreamRequestVariance = env.Int("UPSTREAM_REQUEST_VARIANCE", false, 0, "Percentage variance of the randomly generated request body")
+
 var serviceType = env.String("SERVER_TYPE", false, "http", "Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC")
 var message = env.String("MESSAGE", false, "Hello World", "Message to be returned from service")
 var name = env.String("NAME", false, "Service", "Name of the service")
@@ -86,10 +90,6 @@ var loadCPUPercentage = env.Float64("LOAD_CPU_PERCENTAGE", false, 0, "Percentage
 
 var loadMemoryAllocated = env.Int("LOAD_MEMORY_PER_REQUEST", false, 0, "Memory in bytes consumed per request")
 var loadMemoryVariance = env.Int("LOAD_MEMORY_VARIANCE", false, 0, "Percentage variance of the memory consumed per request, i.e with a value of 50 = 50%, and given a LOAD_MEMORY_PER_REQUEST of 1024 bytes, actual consumption per request would be in the range 516 - 1540 bytes")
-
-var loadRequestBody = env.String("LOAD_REQUEST_BODY", false, "", "The body of the request to send (ignores other LOAD_REQUEST_* params if this is set")
-var loadRequestSize = env.Int("LOAD_REQUEST_SIZE", false, 0, "Size of the request sent")
-var loadRequestVariance = env.Int("LOAD_REQUEST_VARIANCE", false, 0, "Percentage variance of the request size")
 
 // metrics / tracing / logging
 var zipkinEndpoint = env.String("TRACING_ZIPKIN", false, "", "Location of Zipkin tracing collector")
@@ -201,7 +201,7 @@ func main() {
 
 	// create a generator that will be used to create memory and CPU load per request
 	generator := load.NewGenerator(*loadCPUCores, *loadCPUPercentage, *loadMemoryAllocated, *loadMemoryVariance, logger.Log().Named("load_generator"))
-	requestGenerator := load.NewRequestGenerator(*loadRequestBody, *loadRequestSize, *loadRequestVariance, int64(*seed))
+	requestGenerator := load.NewRequestGenerator(*upstreamRequestBody, *upstreamRequestSize, *upstreamRequestVariance, int64(*seed))
 
 	// create the httpClient
 	defaultClient := client.NewHTTP(*upstreamClientKeepAlives, *upstreamAppendRequest, *upstreamRequestTimeout, *upstreamAllowInsecure)
