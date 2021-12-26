@@ -38,6 +38,8 @@ type Request struct {
 	loadGenerator    *load.Generator
 	log              *logging.Logger
 	requestGenerator load.RequestGenerator
+	waitTillReady    bool
+	readinessHandler *Ready
 }
 
 // NewRequest creates a new request handler
@@ -52,6 +54,8 @@ func NewRequest(
 	loadGenerator *load.Generator,
 	log *logging.Logger,
 	requestGenerator load.RequestGenerator,
+	waitTillReady bool,
+	readinessHandler *Ready,
 ) *Request {
 
 	return &Request{
@@ -66,11 +70,19 @@ func NewRequest(
 		loadGenerator:    loadGenerator,
 		log:              log,
 		requestGenerator: requestGenerator,
+		waitTillReady:    waitTillReady,
+		readinessHandler: readinessHandler,
 	}
 }
 
 // Handle the request and call the upstream servers
-func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
+func (rq *Request) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	if rq.waitTillReady && !rq.readinessHandler.Complete() {
+		rq.log.Log().Info("Service not ready")
+		rw.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+
 	// generate 100% CPU load for service
 	finished := rq.loadGenerator.Generate()
 	defer finished()
