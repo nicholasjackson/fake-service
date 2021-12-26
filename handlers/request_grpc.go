@@ -34,6 +34,8 @@ type FakeServer struct {
 	loadGenerator    *load.Generator
 	log              *logging.Logger
 	requestGenerator load.RequestGenerator
+	waitTillReady    bool
+	readinessHandler *Ready
 }
 
 // NewFakeServer creates a new instance of FakeServer
@@ -48,6 +50,8 @@ func NewFakeServer(
 	loadGenerator *load.Generator,
 	l *logging.Logger,
 	requestGenerator load.RequestGenerator,
+	waitTillReady bool,
+	readinessHandler *Ready,
 ) *FakeServer {
 
 	return &FakeServer{
@@ -63,11 +67,17 @@ func NewFakeServer(
 		loadGenerator:                  loadGenerator,
 		log:                            l,
 		requestGenerator:               requestGenerator,
+		waitTillReady:                  waitTillReady,
+		readinessHandler:               readinessHandler,
 	}
 }
 
 // Handle implements the FakeServer Handle interface method
 func (f *FakeServer) Handle(ctx context.Context, in *api.Request) (*api.Response, error) {
+	if f.waitTillReady && !f.readinessHandler.Complete() {
+		f.log.Log().Info("Service Unavailable")
+		return nil, status.Error(codes.Unavailable, "Server Unavailable")
+	}
 
 	// start timing the service this is used later for the total request time
 	ts := time.Now()

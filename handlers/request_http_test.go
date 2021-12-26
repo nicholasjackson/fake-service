@@ -44,19 +44,46 @@ func setupRequest(t *testing.T, uris []string, errorRate float64) (*Request, *cl
 	i := errors.NewInjector(hclog.Default(), errorRate, http.StatusInternalServerError, "http_error", 0, 0, 0)
 	lg := load.NewGenerator(0, 0, 0, 0, hclog.Default())
 
+	rh := NewReady(l, 200, 501, 10*time.Millisecond)
+
 	return &Request{
-		name:          "test",
-		message:       "hello world",
-		duration:      d,
-		upstreamURIs:  uris,
-		workerCount:   1,
-		defaultClient: c,
-		grpcClients:   grpcClients,
-		errorInjector: i,
-		loadGenerator: lg,
-		log:           l,
+		name:             "test",
+		message:          "hello world",
+		duration:         d,
+		upstreamURIs:     uris,
+		workerCount:      1,
+		defaultClient:    c,
+		grpcClients:      grpcClients,
+		errorInjector:    i,
+		loadGenerator:    lg,
+		log:              l,
 		requestGenerator: load.NoopRequestGenerator,
+		waitTillReady:    false,
+		readinessHandler: rh,
 	}, c, grpcClients
+}
+
+func TestRequestWaitsUntilReadinessCompletes(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader([]byte("")))
+	h, _, _ := setupRequest(t, nil, 0)
+	h.waitTillReady = true
+
+	failCount := 0
+
+	assert.Eventually(t, func() bool {
+		rr := httptest.NewRecorder()
+
+		h.ServeHTTP(rr, r)
+
+		if rr.Code != http.StatusOK {
+			failCount++
+			return false
+		}
+
+		return true
+	}, 100*time.Millisecond, 1*time.Millisecond)
+
+	assert.Greater(t, failCount, 1)
 }
 
 func TestRequestCompletesWithNoUpstreams(t *testing.T) {
@@ -64,7 +91,7 @@ func TestRequestCompletesWithNoUpstreams(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h, c, _ := setupRequest(t, nil, 0)
 
-	h.Handle(rr, r)
+	h.ServeHTTP(rr, r)
 	mr := response.Response{}
 	mr.FromJSON([]byte(rr.Body.String()))
 
@@ -87,7 +114,7 @@ func TestRequestCompletesWithNoUpstreamsJSONBody(t *testing.T) {
 	h, c, _ := setupRequest(t, nil, 0)
 	h.message = "{\"hello\": \"world\"}"
 
-	h.Handle(rr, r)
+	h.ServeHTTP(rr, r)
 	mr := response.Response{}
 	mr.FromJSON([]byte(rr.Body.String()))
 
@@ -109,7 +136,7 @@ func TestRequestCompletesWithInjectedError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h, c, _ := setupRequest(t, nil, 1)
 
-	h.Handle(rr, r)
+	h.ServeHTTP(rr, r)
 	mr := response.Response{}
 	mr.FromJSON([]byte(rr.Body.String()))
 
@@ -129,7 +156,7 @@ func TestRequestCompletesWithHTTPUpstreams(t *testing.T) {
 	// setup the upstream response
 	c.On("Do", mock.Anything, mock.Anything).Return(http.StatusOK, []byte(`{"name": "upstream", "body": "OK"}`), nil)
 
-	h.Handle(rr, r)
+	h.ServeHTTP(rr, r)
 
 	c.AssertCalled(t, "Do", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -157,7 +184,7 @@ func TestReturnsErrorWithHTTPUpstreamConnectionError(t *testing.T) {
 	// setup the error
 	c.On("Do", mock.Anything, mock.Anything).Return(-1, nil, fmt.Errorf("Boom"))
 
-	h.Handle(rr, r)
+	h.ServeHTTP(rr, r)
 	mr := response.Response{}
 	mr.FromJSON(rr.Body.Bytes())
 
@@ -178,7 +205,7 @@ func TestReturnsErrorWithHTTPUpstreamHandleError(t *testing.T) {
 	// setup the error
 	c.On("Do", mock.Anything, mock.Anything).Return(http.StatusInternalServerError, []byte(`{"name": "upstream", "code": 503, "error": "boom"}`), fmt.Errorf("Error processing upstream"))
 
-	h.Handle(rr, r)
+	h.ServeHTTP(rr, r)
 	mr := response.Response{}
 	mr.FromJSON([]byte(rr.Body.String()))
 
@@ -198,7 +225,7 @@ func TestRequestCompletesWithHTTPSUpstreams(t *testing.T) {
 	// setup the upstream response
 	c.On("Do", mock.Anything, mock.Anything).Return(http.StatusOK, []byte(`{"name": "upstream", "body": "OK"}`), nil)
 
-	h.Handle(rr, r)
+	h.ServeHTTP(rr, r)
 
 	c.AssertCalled(t, "Do", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -227,7 +254,7 @@ func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 	gcMock := gc["grpc://test.com"].(*client.MockGRPC)
 	gcMock.On("Handle", mock.Anything, mock.Anything).Return(&api.Response{Message: `{"name": "upstream", "body": "OK"}`}, map[string]string{"test": "abc"}, nil)
 
-	h.Handle(rr, r)
+	h.ServeHTTP(rr, r)
 	mr := response.Response{}
 	mr.FromJSON([]byte(rr.Body.String()))
 
@@ -254,7 +281,7 @@ func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {
 	gcMock := gc["grpc://something.com"].(*client.MockGRPC)
 	gcMock.On("Handle", mock.Anything, mock.Anything).Return(nil, map[string]string{}, status.Error(codes.Internal, "Boom"))
 
-	h.Handle(rr, r)
+	h.ServeHTTP(rr, r)
 	mr := response.Response{}
 	mr.FromJSON([]byte(rr.Body.String()))
 	//pretty.Print(mr)

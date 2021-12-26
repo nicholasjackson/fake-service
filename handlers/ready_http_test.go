@@ -84,3 +84,9 @@ func TestReadyReturnsOKResponseWhenDelayElapsed(t *testing.T) {
 	// this test is not coded to a fixed amound due to varinng speeds on CI
 	assert.Greater(t, calls, 1)
 }
+
+func TestReadyReturnsCompleteWhenDelayElapsed(t *testing.T) {
+	h := setupReady(t, http.StatusOK, http.StatusServiceUnavailable, 10*time.Millisecond)
+
+	assert.Eventually(t, func() bool { return h.Complete() }, 100*time.Millisecond, 1*time.Millisecond)
+}

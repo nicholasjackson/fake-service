@@ -32,6 +32,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+
+	"github.com/soheilhy/cmux"
 	//"net/http/pprof"
 )
 
@@ -43,7 +45,6 @@ var upstreamRequestBody = env.String("UPSTREAM_REQUEST_BODY", false, "", "Reques
 var upstreamRequestSize = env.Int("UPSTREAM_REQUEST_SIZE", false, 0, "Size of the randomly generated request body to send with upstream requests")
 var upstreamRequestVariance = env.Int("UPSTREAM_REQUEST_VARIANCE", false, 0, "Percentage variance of the randomly generated request body")
 
-var serviceType = env.String("SERVER_TYPE", false, "http", "Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC")
 var message = env.String("MESSAGE", false, "Hello World", "Message to be returned from service")
 var name = env.String("NAME", false, "Service", "Name of the service")
 
@@ -112,6 +113,7 @@ var healthResponseCode = env.Int("HEALTH_CHECK_RESPONSE_CODE", false, 200, "Resp
 
 var readySuccessResponseCode = env.Int("READY_CHECK_RESPONSE_SUCCESS_CODE", false, 200, "Response code returned from the HTTP readiness handler `/ready` after the response delay has elapsed")
 var readyFailureResponseCode = env.Int("READY_CHECK_RESPONSE_FAILURE_CODE", false, 503, "Response code returned from the HTTP readiness handler `/ready` before the response delay has elapsed, this simulates the response code a service would return while starting")
+var readyRootPathWaitTillReady = env.Bool("READY_CHECK_ROOT_PATH_WAIT_TILL_READY", false, false, "Should the main handler at path `/` wait for the readiness check to pass before returning a response?")
 var readyResponseDelay = env.Duration("READY_CHECK_RESPONSE_DELAY", false, 0*time.Second, "Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE")
 var seed = env.Int("RAND_SEED", false, int(time.Now().Unix()), "A seed to initialize the random number generators")
 
@@ -221,17 +223,69 @@ func main() {
 		grpcClients[u] = c
 	}
 
-	logger.ServiceStarted(*name, *upstreamURIs, *upstreamWorkers, *listenAddress, *serviceType)
-
-	var httpServer *http.Server
-	var grpcServer *grpc.Server
-
-	switch *serviceType {
-	case "http":
-		httpServer = startupHTTP(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient, requestGenerator)
-	case "grpc":
-		grpcServer = startupGRPC(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient, requestGenerator)
+	// setup the listener
+	l, err := net.Listen("tcp", *listenAddress)
+	if err != nil {
+		logger.Log().Error("Unable to listen at", "address", *listenAddress, "error", err)
+		os.Exit(1)
 	}
+
+	// create a cmux
+	// cmux allows us to have a grpc and a http server listening on the same port
+	m := cmux.New(l)
+	grpcListener := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+	httpListener := m.Match(cmux.HTTP1Fast())
+
+	// create the http handlers
+	hh := handlers.NewHealth(logger, *healthResponseCode)
+	rh := handlers.NewReady(logger, *readySuccessResponseCode, *readyFailureResponseCode, *readyResponseDelay)
+	rq := handlers.NewRequest(
+		*name,
+		*message,
+		requestDuration,
+		tidyURIs(*upstreamURIs),
+		*upstreamWorkers,
+		defaultClient,
+		grpcClients,
+		errorInjector,
+		generator,
+		logger,
+		requestGenerator,
+		*readyRootPathWaitTillReady,
+		rh,
+	)
+
+	grpcServer := createGRPCServer(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient, requestGenerator, *readyRootPathWaitTillReady, rh)
+	httpServer := createHTTPServer(hh, rh, rq, logger)
+
+	// start the http/s server
+	go func() {
+		if *tlsCertificate != "" && *tlsKey != "" {
+			logger.Log().Info("Enabling TLS")
+			err = httpServer.ServeTLS(httpListener, *tlsCertificate, *tlsKey)
+		} else {
+			err = httpServer.Serve(httpListener)
+		}
+
+		if err != nil && err != cmux.ErrServerClosed {
+			logger.Log().Error("Error starting http service", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// start the grpc server
+	go func() {
+		err := grpcServer.Serve(grpcListener)
+		if err != nil {
+			logger.Log().Error("Error starting http service", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// start the multiplexer listening
+	go m.Serve()
+
+	logger.ServiceStarted(*name, *upstreamURIs, *upstreamWorkers, *listenAddress)
 
 	// trap sigterm or interupt and gracefully shutdown the server
 	c := make(chan os.Signal, 1)
@@ -242,22 +296,20 @@ func main() {
 	sig := <-c
 	log.Println("Graceful shutdown, got signal:", sig)
 
-	// gracefully shutdown the server, waiting max 30 seconds for current operations to complete
+	// if the server does not gracefully stop after 30s, kill it
+	timer := time.AfterFunc(30*time.Second, func() {
+		grpcServer.Stop() // force stop the server
+	})
 
-	switch *serviceType {
-	case "http":
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		httpServer.Shutdown(ctx)
-	case "grpc":
-		// if the server does not gracefully stop after 30s, kill it
-		timer := time.AfterFunc(30*time.Second, func() {
-			grpcServer.Stop() // force stop the server
-		})
+	grpcServer.GracefulStop()
+	timer.Stop()
 
-		grpcServer.GracefulStop()
-		timer.Stop()
-	}
+	// gracefully shutdown the HTTP server, waiting max 30 seconds for current operations to complete
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	httpServer.Shutdown(ctx)
+
+	m.Close()
 }
 
 //go:embed ui/build
@@ -271,33 +323,12 @@ func (e *embedFs) Open(name string) (fs.File, error) {
 	return uiFiles.Open(path.Join("ui/build", name))
 }
 
-func startupHTTP(
+func createHTTPServer(
+	hh *handlers.Health,
+	rh *handlers.Ready,
+	rq http.Handler,
 	logger *logging.Logger,
-	rd *timing.RequestDuration,
-	errorInjector *errors.Injector,
-	generator *load.Generator,
-	grpcClients map[string]client.GRPC,
-	defaultClient client.HTTP,
-	requestGenerator load.RequestGenerator,
 ) *http.Server {
-
-	rq := handlers.NewRequest(
-		*name,
-		*message,
-		rd,
-		tidyURIs(*upstreamURIs),
-		*upstreamWorkers,
-		defaultClient,
-		grpcClients,
-		errorInjector,
-		generator,
-		logger,
-		requestGenerator,
-	)
-
-	hh := handlers.NewHealth(logger, *healthResponseCode)
-	rh := handlers.NewReady(logger, *readySuccessResponseCode, *readyFailureResponseCode, *readyResponseDelay)
-
 	mux := http.NewServeMux()
 
 	// add the static files
@@ -315,7 +346,7 @@ func startupHTTP(
 	//mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	//mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
-	mux.HandleFunc("/", rq.Handle)
+	mux.Handle("/", rq)
 
 	// CORS
 	corsOptions := make([]cors.CORSOption, 0)
@@ -334,7 +365,6 @@ func startupHTTP(
 	logger.Log().Info("Settings CORS options", "allow_creds", *allowCredentials, "allow_headers", *allowedHeaders, "allow_origins", *allowedOrigins)
 	ch := cors.CORS(corsOptions...)
 
-	var err error
 	server := &http.Server{
 		Addr:              *listenAddress,
 		ReadTimeout:       *serverReadTimeout,
@@ -344,26 +374,13 @@ func startupHTTP(
 		Handler:           ch(mux),
 		ErrorLog:          logger.Log().StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
 	}
+
 	server.SetKeepAlivesEnabled(*serverKeepAlives)
-
-	go func() {
-		if *tlsCertificate != "" && *tlsKey != "" {
-			logger.Log().Info("Enabling TLS")
-			err = server.ListenAndServeTLS(*tlsCertificate, *tlsKey)
-		} else {
-			err = server.ListenAndServe()
-		}
-
-		if err != nil && err != http.ErrServerClosed {
-			logger.Log().Error("Error starting service", "address", *listenAddress, "error", err)
-			os.Exit(1)
-		}
-	}()
 
 	return server
 }
 
-func startupGRPC(
+func createGRPCServer(
 	logger *logging.Logger,
 	rd *timing.RequestDuration,
 	errorInjector *errors.Injector,
@@ -371,13 +388,9 @@ func startupGRPC(
 	grpcClients map[string]client.GRPC,
 	defaultClient client.HTTP,
 	requestGenerator load.RequestGenerator,
+	waitForReadyCheck bool,
+	readyHandler *handlers.Ready,
 ) *grpc.Server {
-
-	lis, err := net.Listen("tcp", *listenAddress)
-	if err != nil {
-		logger.Log().Error("failed to create lister", "address", *listenAddress, "error", err)
-		os.Exit(1)
-	}
 
 	serverOptions := []grpc.ServerOption{}
 
@@ -412,15 +425,16 @@ func startupGRPC(
 		generator,
 		logger,
 		requestGenerator,
+		waitForReadyCheck, // hard code to false until we
+		readyHandler,
 	)
 
 	api.RegisterFakeServiceServer(grpcServer, fakeServer)
-	go grpcServer.Serve(lis)
 
 	return grpcServer
 }
 
-// tidyURIs splits the upstream URIs passed by environment variable and reuturns
+// tidyURIs splits the upstream URIs passed by environment variable and returns
 // a sanitised slice
 func tidyURIs(uris string) []string {
 	resp := []string{}
@@ -435,5 +449,3 @@ func tidyURIs(uris string) []string {
 
 	return resp
 }
-
-// return the ip addresses for this service

@@ -41,11 +41,34 @@ func setupFakeServer(t *testing.T, uris []string, errorRate float64) (*FakeServe
 		}
 	}
 
+	rh := NewReady(l, 200, 501, 10*time.Millisecond)
+
 	// setup the error injector and load simulation
 	i := errors.NewInjector(l.Log(), errorRate, int(codes.Internal), "http_error", 0, 0, 0)
 	lg := load.NewGenerator(0, 0, 0, 0, hclog.Default())
 
-	return NewFakeServer("test", "hello world", d, uris, 1, c, grpcClients, i, lg, l, load.NoopRequestGenerator), c, grpcClients
+	return NewFakeServer("test", "hello world", d, uris, 1, c, grpcClients, i, lg, l, load.NoopRequestGenerator, false, rh), c, grpcClients
+}
+
+func TestGRPCWaitsUntilReadinessCompletes(t *testing.T) {
+	fs, _, _ := setupFakeServer(t, nil, 0)
+	fs.waitTillReady = true
+
+	failCount := 0
+
+	assert.Eventually(t, func() bool {
+		_, err := fs.Handle(context.Background(), nil)
+
+		s, ok := status.FromError(err)
+		if ok && s.Code() == codes.Unavailable {
+			failCount++
+			return false
+		}
+
+		return true
+	}, 100*time.Millisecond, 1*time.Millisecond)
+
+	assert.Greater(t, failCount, 1)
 }
 
 func TestGRPCServiceHandlesRequestWithNoUpstream(t *testing.T) {

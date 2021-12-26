@@ -12,6 +12,7 @@ require (
 	github.com/openzipkin-contrib/zipkin-go-opentracing v0.4.1
 	github.com/openzipkin/zipkin-go v0.2.0
 	github.com/philhofer/fwd v1.0.0 // indirect
+	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/tinylib/msgp v1.1.0 // indirect
