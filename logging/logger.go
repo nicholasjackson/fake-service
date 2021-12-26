@@ -64,7 +64,7 @@ func (l *Logger) Log() hclog.Logger {
 // LogServiceStarted logs information when the service starts
 func (l *Logger) ServiceStarted(name, upstreamURIs string, upstreamWorkers int, listenAddress string) {
 	l.log.Info(
-		"Starting service",
+		"Started service",
 		"name", name,
 		"upstreamURIs", upstreamURIs,
 		"upstreamWorkers", fmt.Sprint(upstreamWorkers),

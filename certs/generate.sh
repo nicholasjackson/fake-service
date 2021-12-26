@@ -155,6 +155,14 @@ openssl verify -CAfile 2_intermediate/certs/ca-chain.cert.pem \
       3_application/certs/$1.cert.pem
 
 
+echo 
+echo Create the chain file
+echo ---
+cat 3_application/certs/$1.cert.pem \
+      2_intermediate/certs/ca-chain.cert.pem > 3_application/certs/ca-chain.cert.pem
+
+chmod 444 2_application/certs/ca-chain.cert.pem
+
 echo
 echo Generate the client key
 echo ---

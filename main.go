@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/tls"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -29,7 +31,6 @@ import (
 	cors "github.com/gorilla/handlers"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
@@ -230,11 +231,31 @@ func main() {
 		os.Exit(1)
 	}
 
+	// if we are using TLS wrap the listener in a TLS listener
+	if *tlsCertificate != "" && *tlsKey != "" {
+		logger.Log().Info("Enabling TLS for HTTP endpoint")
+
+		var certificate tls.Certificate
+		certificate, err = tls.LoadX509KeyPair(*tlsCertificate, *tlsKey)
+		if err != nil {
+			logger.Log().Error("Error loading certificates", "error", err)
+			os.Exit(1)
+		}
+
+		config := &tls.Config{
+			Certificates: []tls.Certificate{certificate},
+			Rand:         rand.Reader,
+		}
+
+		// Create TLS listener.
+		l = tls.NewListener(l, config)
+	}
+
 	// create a cmux
 	// cmux allows us to have a grpc and a http server listening on the same port
 	m := cmux.New(l)
-	grpcListener := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	httpListener := m.Match(cmux.HTTP1Fast())
+	grpcListener := m.Match(cmux.Any())
 
 	// create the http handlers
 	hh := handlers.NewHealth(logger, *healthResponseCode)
@@ -260,15 +281,11 @@ func main() {
 
 	// start the http/s server
 	go func() {
-		if *tlsCertificate != "" && *tlsKey != "" {
-			logger.Log().Info("Enabling TLS")
-			err = httpServer.ServeTLS(httpListener, *tlsCertificate, *tlsKey)
-		} else {
-			err = httpServer.Serve(httpListener)
-		}
+		var err error
+		err = httpServer.Serve(httpListener)
 
 		if err != nil && err != cmux.ErrServerClosed {
-			logger.Log().Error("Error starting http service", "error", err)
+			logger.Log().Error("Error starting http server", "error", err)
 			os.Exit(1)
 		}
 	}()
@@ -277,7 +294,7 @@ func main() {
 	go func() {
 		err := grpcServer.Serve(grpcListener)
 		if err != nil {
-			logger.Log().Error("Error starting http service", "error", err)
+			logger.Log().Error("Error starting gRPC server", "error", err)
 			os.Exit(1)
 		}
 	}()
@@ -399,15 +416,16 @@ func createGRPCServer(
 		serverOptions = append(serverOptions, grpc.KeepaliveParams(keepalive.ServerParameters{MaxConnectionAge: 5 * time.Second}))
 	}
 
-	if *tlsCertificate != "" && *tlsKey != "" {
-		creds, err := credentials.NewServerTLSFromFile(*tlsCertificate, *tlsKey)
-		if err != nil {
-			log.Fatalf("Failed to setup TLS: %v", err)
-		}
-		serverOptions = append(serverOptions, grpc.Creds(creds))
-	}
+	//if *tlsCertificate != "" && *tlsKey != "" {
+	//	creds, err := credentials.NewServerTLSFromFile(*tlsCertificate, *tlsKey)
+	//	if err != nil {
+	//		logger.Log().Error("Unable to load TLS certificate for gRPC server", "error", err)
+	//		os.Exit(1)
+	//	}
+	//	serverOptions = append(serverOptions, grpc.Creds(creds))
+	//}
 
-	grpcServer := grpc.NewServer(serverOptions...)
+	grpcServer := grpc.NewServer()
 
 	// register the reflection service which allows clients to determine the methods
 	// for this gRPC service
