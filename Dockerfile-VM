@@ -1,6 +1,6 @@
 # This image contains Fake Service Consul and Envoy, it can be used to simulate a Virtual Machine containing the Consul Agent
 # and Envoy running as Daemon processes.
-FROM nicholasjackson/consul-envoy:v1.9.5-v1.16.2 as base
+FROM nicholasjackson/consul-envoy:v1.10.7-v1.18.3 as base
 
 # Setup bash and supervisord etc
 RUN apt-get update && \

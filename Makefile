@@ -1,5 +1,6 @@
 DOCKER_REGISTRY ?= docker.io/nicholasjackson
 VERSION=v0.22.7
+CONSULBASE=v1.10.7
 
 protos:
 	 protoc --proto_path grpc/protos --go_out=grpc/api --go_opt=paths=source_relative \
@@ -38,7 +39,7 @@ build_docker_vm:	build_linux build_arm64
 	docker buildx use multi
 	docker buildx inspect --bootstrap
 	docker buildx build --platform linux/arm64,linux/amd64 \
-		-t ${DOCKER_REGISTRY}/fake-service:vm-${VERSION} \
+		-t ${DOCKER_REGISTRY}/fake-service:vm-${CONSULBASE}-${VERSION} \
 		-f ./Dockerfile-VM \
     . \
 		--push
