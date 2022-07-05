@@ -276,9 +276,10 @@ func main() {
 		*readyRootPathWaitTillReady,
 		rh,
 	)
+	cq := handlers.NewConfig(logger, errorInjector, hh)
 
 	grpcServer := createGRPCServer(logger, requestDuration, errorInjector, generator, grpcClients, defaultClient, requestGenerator, *readyRootPathWaitTillReady, rh)
-	httpServer := createHTTPServer(hh, rh, rq, logger)
+	httpServer := createHTTPServer(hh, rh, rq, cq, logger)
 
 	// start the http/s server
 	go func() {
@@ -344,6 +345,7 @@ func createHTTPServer(
 	hh *handlers.Health,
 	rh *handlers.Ready,
 	rq http.Handler,
+	con *handlers.Config,
 	logger *logging.Logger,
 ) *http.Server {
 	mux := http.NewServeMux()
@@ -355,6 +357,9 @@ func createHTTPServer(
 	// Add the generic health and ready handlers
 	mux.HandleFunc("/health", hh.Handle)
 	mux.HandleFunc("/ready", rh.Handle)
+
+	// Add the config handler that allows modification of config values dynamically
+	mux.HandleFunc("/config/", con.Handle)
 
 	// uncomment to enable pprof
 	//mux.HandleFunc("/debug/pprof/", pprof.Index)
