@@ -44,6 +44,12 @@ func NewInjector(l hclog.Logger, errorPercentage float64, errorCode int, errorTy
 	}
 }
 
+// SetErrorPercentage sets the error rate for the injector
+// must be a floating point number  between 0 and 1
+func (e *Injector) SetErrorPercentage(rate float64) {
+	e.errorPercentage = rate
+}
+
 // Do returns an error
 func (e *Injector) Do() *Response {
 	e.requestCount++ // increment the request count

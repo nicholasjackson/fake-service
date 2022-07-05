@@ -31,3 +31,7 @@ func (h *Health) Handle(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(h.statusCode)
 	fmt.Fprint(rw, "OK")
 }
+
+func (h *Health) SetStatusCode(code int) {
+	h.statusCode = code
+}
