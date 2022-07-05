@@ -1,6 +1,6 @@
 DOCKER_REGISTRY ?= docker.io/nicholasjackson
-VERSION=v0.22.7
-CONSULBASE=v1.10.7
+VERSION=v0.23.1
+CONSULBASE=v1.12.2
 
 protos:
 	 protoc --proto_path grpc/protos --go_out=grpc/api --go_opt=paths=source_relative \
