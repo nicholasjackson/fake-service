@@ -111,12 +111,12 @@ jobs:
 
       - name: Build and push Docker
         run: |
-          docker buildx build --platform linux/arm/v7,linux/arm/v6,linux/arm64,linux/amd64 \
+          docker buildx build --platform linux/arm64,linux/amd64 \
             -t nicholasjackson/fake-service:${GITHUB_REF##*/} \
             -f ./Dockerfile \
             ./bin \
             --push
-      
+
       - name: Build and push Docker VM
         run: |
           docker buildx build --platform linux/arm64,linux/amd64 \
@@ -179,7 +179,7 @@ jobs:
           asset_path: ./fake_service_linux_arm7.zip
           asset_name: fake_service_linux_arm7.zip
           asset_content_type: application/zip
-      
+
       - name: Upload Release Asset Linux Arm64
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
@@ -190,7 +190,7 @@ jobs:
           asset_path: ./fake_service_linux_arm64.zip
           asset_name: fake_service_linux_arm64.zip
           asset_content_type: application/zip
-      
+
       - name: Upload Release Asset Darwin Amd64
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
@@ -201,7 +201,7 @@ jobs:
           asset_path: ./fake_service_darwin_amd64.zip
           asset_name: fake_service_darwin_amd64.zip
           asset_content_type: application/zip
-      
+
       - name: Upload Release Asset Darwin Arm64
         if: contains(github.ref, 'v0')
         uses: actions/upload-release-asset@v1
