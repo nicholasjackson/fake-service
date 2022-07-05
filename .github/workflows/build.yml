@@ -13,21 +13,9 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
 
-      - uses: actions/setup-node@v1
-        with:
-          node-version: '12'
-
-      - name: Get dependencies
-        run: |
-          cd ui && yarn install
-
-      - name: Unit Test
-        run: |
-          cd ui && CI=true yarn test
-
       - name: Build
         run: |
-          cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+          make build_ui
 
       - uses: actions/upload-artifact@v2
         with:

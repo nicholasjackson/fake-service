@@ -1,6 +1,6 @@
 DOCKER_REGISTRY ?= docker.io/nicholasjackson
-VERSION=v0.22.7
-CONSULBASE=v1.10.7
+VERSION=v0.23.1
+CONSULBASE=v1.12.2
 
 protos:
 	 protoc --proto_path grpc/protos --go_out=grpc/api --go_opt=paths=source_relative \
@@ -9,31 +9,31 @@ protos:
 
 # Requires Yarn and Node
 build_ui:
-	cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+	cd ui && DOCKER_BUILDKIT=1 docker build -f Dockerfile.build -o build .
 
-build_linux: build_ui
+build_linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/linux/amd64/fake-service
 
-build_darwin: build_ui
+build_darwin:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/darwin/amd64/fake-service
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/darwin/arm64/fake-service
 
-build_arm6: build_ui
+build_arm6:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o bin/linux/arm6/fake-service
 
-build_arm7: build_ui
+build_arm7:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o bin/linux/arm7/fake-service
 
-build_arm64: build_ui
+build_arm64:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/linux/arm64/fake-service
 
-build_windows: build_ui
+build_windows:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o bin/windows/fake-service.exe
 
 build_local: build_ui
 	go build -o bin/fake-service
 
-build_docker_vm:	build_linux build_arm64
+build_docker_vm:	build_ui build_linux build_arm64
 	docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 	docker buildx create --name multi || true
 	docker buildx use multi
