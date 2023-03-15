@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 )
 
 type Metrics interface {
@@ -23,11 +23,12 @@ type StatsDMetrics struct {
 }
 
 func NewStatsDMetrics(serviceName, environment, uri string) Metrics {
-	c, _ := statsd.New(uri)
-	c.Tags = []string{
-		fmt.Sprintf("service:%s", serviceName),
-		fmt.Sprintf("env:%s", environment),
-	}
+	c, _ := statsd.New(uri, statsd.WithTags(
+		[]string{
+			fmt.Sprintf("service:%s", serviceName),
+			fmt.Sprintf("env:%s", environment),
+		},
+	))
 
 	return &StatsDMetrics{
 		c: c,
