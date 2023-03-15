@@ -95,7 +95,7 @@ Environment variables:
   UPSTREAM_REQUEST_VARIANCE  default: '0'
        Percentage variance of the randomly generated request body
   MESSAGE  default: 'Hello World'
-       Message to be returned from service, can either be a string or valid JSON
+       Message to be returned from service, can either be a string or valid JSON. To display content in the UI, valid HTML can be included in this variable.
   NAME  default: 'Service'
        Name of the service
   LISTEN_ADDR  default: '0.0.0.0:9090'

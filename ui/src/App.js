@@ -4,9 +4,13 @@ import './Chart.js'
 import Timeline from './Chart.js';
 
 import Navbar from 'react-bootstrap/Navbar';
-import FormControl from 'react-bootstrap/FormControl';
 import Form from 'react-bootstrap/Form';
 import Button from 'react-bootstrap/Button';
+import Container from 'react-bootstrap/Container';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
+
+import BottomPanel from './components/bottom_panel';
 
 class App extends React.Component {
 
@@ -55,14 +59,30 @@ class App extends React.Component {
   render() {
     return (
       <div className="App">
-        <Navbar bg="dark" variant="dark" fixed="top">
-          <Navbar.Brand><h1>Fake Service</h1></Navbar.Brand>
-          <Form inline>
-            <FormControl style={{width:"600px"}} type="text" placeholder="/" className="mr-sm-4" onChange={this.pathChanged}/>
-            <Button variant="outline-light" onClick={this.goClick}>Go</Button>
-          </Form>
+        <Navbar bg="light" fixed="top">
+          <Container className='align-middle'>
+            <Navbar.Brand>
+              <img src="server.png" className="d-inline-block align-top App-logo" alt="server"/>
+              <div className='d-inline-block App-header-text'>Fake Service</div>
+            </Navbar.Brand>
+            <Navbar.Toggle />
+            <Navbar.Collapse>
+              <Form className="form-custom align-middle">
+                <Form.Group as={Row} className="mb-3 align-middle d-lg-flex">
+                    <Form.Label column sm="1">path:</Form.Label>
+                    <Col sm="9">
+                      <Form.Control column type="text" placeholder="/" onChange={this.pathChanged}/>
+                    </Col>
+                    <Col sm="1">
+                      <Button column variant="outline-success" onClick={this.goClick}>Go</Button>
+                    </Col>
+                </Form.Group>
+              </Form>
+            </Navbar.Collapse>
+          </Container>
         </Navbar>
         <Timeline url={this.state.url} refresh={this.state.refresh} />
+        <BottomPanel></BottomPanel>
       </div>
     );
   }

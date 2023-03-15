@@ -5,6 +5,7 @@ import { processData } from './Data'
 import Container from 'react-bootstrap/Container'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
+import PubSub from 'pubsub-js';
 
 const NodeInnerCustom = ({ node, children, ...otherProps }) => {
   var className = "node";
@@ -21,6 +22,11 @@ const NodeInnerCustom = ({ node, children, ...otherProps }) => {
       ips.push(<div key={n}>{node.properties.ip_addresses[n]}</div>);
     }
   }
+  
+  function descriptionClicked(e) {
+    let msg = {"data": e}
+    PubSub.publish("description_clicked", msg)
+  }
 
   return (
     <Container {...otherProps} className={className} key={node.properties.name}>
@@ -32,28 +38,33 @@ const NodeInnerCustom = ({ node, children, ...otherProps }) => {
       </Row>
       <Row>
         <Col>
-    <Container>
-      <Row>
-        <Col className="node-key" md={5}>Request URI</Col>
-        <Col className="node-value" md={1}>{node.properties.uri}</Col>
+          <Container>
+            <Row>
+              <Col className="node-key" md={5}>Request URI</Col>
+              <Col className="node-value" md={1}>{node.properties.uri}</Col>
+            </Row>
+            <Row>
+              <Col className="node-key" md={5}>IP Address</Col>
+              <Col className="node-value" md={1}>{ips}</Col>
+            </Row>
+            <Row>
+              <Col className="node-key" md={5}>Duration</Col>
+              <Col className="node-value" md={1}>{node.properties.duration}</Col>
+            </Row>
+            <Row>
+              <Col className="node-key" md={5}>Type</Col>
+              <Col className="node-value" md={1}>{node.properties.type}</Col>
+            </Row>
+            <Row>
+              <Col className="node-key" md={5}>Response</Col>
+              <Col className="node-value" md={1}>{node.properties.response}</Col>
+            </Row>
+          </Container>
+        </Col>
       </Row>
       <Row>
-        <Col className="node-key" md={5}>IP Address</Col>
-        <Col className="node-value" md={1}>{ips}</Col>
-      </Row>
-      <Row>
-        <Col className="node-key" md={5}>Duration</Col>
-        <Col className="node-value" md={1}>{node.properties.duration}</Col>
-      </Row>
-      <Row>
-        <Col className="node-key" md={5}>Type</Col>
-        <Col className="node-value" md={1}>{node.properties.type}</Col>
-      </Row>
-      <Row>
-        <Col className="node-key" md={5}>Response</Col>
-        <Col className="node-value" md={1}>{node.properties.response}</Col>
-      </Row>
-    </Container>
+        <Col className="Node-click">
+          <a href="#" onClick={() => descriptionClicked(node.properties.body)}>click here for description</a>
         </Col>
       </Row>
     </Container>
@@ -83,6 +94,7 @@ class Timeline extends React.Component {
       this.fetchData(props.url);
     }
   }
+
 
   fetchData(url) {
     fetch(url)
