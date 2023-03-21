@@ -60,10 +60,14 @@ jobs:
         run: |
           go get -u github.com/gobuffalo/packr/v2/packr2
           go get -v -t ./...
+        env:
+          GOPATH: /home/runner/go
 
       - name: Unit Test
         run: |
           go test -v ./...
+        env:
+          GOPATH: /home/runner/go
 
       - name: Build
         run: |
@@ -75,7 +79,8 @@ jobs:
           CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/darwin/amd64/fake-service
           CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/darwin/arm64/fake-service
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o bin/windows/fake-service.exe
-
+        env:
+          GOPATH: /home/runner/go
       - uses: actions/upload-artifact@v2
         with:
           name: binaries

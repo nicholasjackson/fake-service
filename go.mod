@@ -35,6 +35,7 @@ require (
 	github.com/gobuffalo/packd v1.0.2 // indirect
 	github.com/golang/glog v1.1.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/karrick/godirwalk v1.17.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -51,6 +52,8 @@ require (
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.5.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
+	github.com/spf13/cobra v1.6.1 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
