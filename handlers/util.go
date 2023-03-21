@@ -23,6 +23,13 @@ const timeFormat = "2006-01-02T15:04:05.000000"
 func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HTTP, pr *http.Request, l *logging.Logger) (*response.Response, error) {
 	httpReq, _ := http.NewRequest("GET", uri, nil)
 
+	// Pass along any X- headers
+	// for k, v := range pr.Header {
+	// 	if strings.HasPrefix("X-", k) {
+	// 		httpReq.Header.Set(k, v[0])
+	// 	}
+	// }
+
 	hr := l.CallHTTPUpstream(pr, httpReq, ctx)
 	defer hr.Finished()
 
@@ -47,7 +54,7 @@ func workerHTTP(ctx opentracing.SpanContext, uri string, defaultClient client.HT
 	// set the local URI for the upstream
 	r.URI = uri
 	r.Code = code
-	r.Headers = headers
+	r.ResponseHeaders = headers
 	r.Cookies = cookies
 
 	if err != nil {
@@ -84,22 +91,22 @@ func workerExternalHTTP(ctx opentracing.SpanContext, uri string, defaultClient c
 
 	// manually fill out the response because its not well formed
 	r := &response.Response{
-		Name:     "external-service",
-		URI:      uri,
-		Type:     "HTTP",
-		Headers:  headers,
-		Cookies:  cookies,
-		Body:     b,
-		Code:     code,
-		Duration: duration.String(),
-		StartTime: startTime.Format(timeFormat),
-		EndTime:   endTime.Format(timeFormat),
+		Name:            "external-service",
+		URI:             uri,
+		Type:            "HTTP",
+		ResponseHeaders: headers,
+		Cookies:         cookies,
+		Body:            b,
+		Code:            code,
+		Duration:        duration.String(),
+		StartTime:       startTime.Format(timeFormat),
+		EndTime:         endTime.Format(timeFormat),
 	}
 
 	// set the local URI for the upstream
 	r.URI = uri
 	r.Code = code
-	r.Headers = headers
+	r.ResponseHeaders = headers
 	r.Cookies = cookies
 
 	if err != nil {
@@ -149,7 +156,7 @@ func workerGRPC(ctx opentracing.SpanContext, uri string, grpcClients map[string]
 	// set the local URI for the upstream
 	r.URI = uri
 	r.Type = "gRPC"
-	r.Headers = headers
+	r.ResponseHeaders = headers
 
 	if err != nil {
 		r.Error = err.Error()

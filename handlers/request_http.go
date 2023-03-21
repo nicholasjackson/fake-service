@@ -88,6 +88,12 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	resp.URI = r.URL.String()
 	resp.IPAddresses = getIPInfo()
 
+	headers := map[string]string{}
+	for k, v := range r.Header {
+		headers[k] = strings.Join(v, ",")
+	}
+	resp.RequestHeaders = headers
+
 	// are we injecting errors, if so return the error
 	if er := rq.errorInjector.Do(); er != nil {
 		resp.Code = er.Code

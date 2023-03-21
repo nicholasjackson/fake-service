@@ -160,5 +160,5 @@ func TestGRPCServiceHandlesRequestWithGRPCUpstream(t *testing.T) {
 	assert.Len(t, mr.UpstreamCalls, 1)
 	assert.Equal(t, "upstream", mr.UpstreamCalls["grpc://test.com"].Name)
 	assert.Equal(t, "grpc://test.com", mr.UpstreamCalls["grpc://test.com"].URI)
-	assert.Equal(t, "abc", mr.UpstreamCalls["grpc://test.com"].Headers["test"])
+	assert.Equal(t, "abc", mr.UpstreamCalls["grpc://test.com"].ResponseHeaders["test"])
 }
