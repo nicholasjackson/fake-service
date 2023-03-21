@@ -1,13 +1,84 @@
 # Fake Service
-Fake Service for testing upstream service communications and testing service mesh and other scenarios, can operate as a HTTP or a gRPC service.
-
-[![CircleCI](https://circleci.com/gh/nicholasjackson/fake-service.svg?style=svg)](https://circleci.com/gh/nicholasjackson/fake-service)
+Fake service that can handle both HTTP and gRPC traffic, for testing upstream service communications and testing service mesh and other scenarios.
 
 Binaries: [https://github.com/nicholasjackson/fake-service/releases/](https://github.com/nicholasjackson/fake-service/releases/)  
 Docker Images: [https://hub.docker.com/r/nicholasjackson/fake-service](https://hub.docker.com/r/nicholasjackson/fake-service)  
 
+## Basic usage
+To run fake service, first download the correct version for your platform from the releases page. Then run the following command to start the service and bind it to 
+all ip addresses on port 19090:
+
+```shell
+LISTEN_ADDR=0.0.0.0:19090 fake-service
+```
+
+You will see the following output:
+
+```
+2021-12-26T14:57:19.222Z [INFO]  Using seed: seed=1640530639
+2021-12-26T14:57:19.222Z [INFO]  Adding handler for UI static files
+2021-12-26T14:57:19.223Z [INFO]  Settings CORS options: allow_creds=false allow_headers=Accept,Accept-Language,Content-Language,Origin,Content-Type allow_origins=*
+2021-12-26T14:57:19.223Z [INFO]  Started service: name=Code upstreamURIs= upstreamWorkers=1 listenAddress=0.0.0.0:19090
+```
+
+Next let's try to connect to the service using the curl:
+
+```shell
+curl localhost:19090
+```
+
+Fake service will respond with a json payload similar to the following:
+
+```shell
+{
+  "name": "Code",
+  "uri": "/",
+  "type": "HTTP",
+  "ip_addresses": [
+    "172.21.166.161"
+  ],
+  "start_time": "2021-12-26T14:58:47.248837",
+  "end_time": "2021-12-26T14:58:47.249039",
+  "duration": "202.008µs",
+  "body": "Hello World",
+  "code": 200
+}
+```
+
+You could have also made this request using the browser based ui that is available at the following url: http://localhost:19090/ui
+
+Let's now see how you can make a gRPC request to fake service using [gRPCurl](https://github.com/fullstorydev/grpcurl)
+
+```shell
+ grpcurl -plaintext localhost:19090 FakeService.Handle
+{
+  "Message": "{\n  \"name\": \"Code\",\n  \"type\": \"gRPC\",\n  \"ip_addresses\": [\n    \"172.21.166.161\"\n  ],\n  \"start_time\": \"2021-12-26T15:03:27.384751\",\n  \"end_time\": \"2021-12-26T15:03:27.384805\",\n  \"duration\": \"53.961µs\",\n  \"body\": \"Hello World\",\n  \"code\": 0\n}\n"
+}
+```
+
+The gRPC endpoint returns a message with a single parameter that contains the same json payload that was returned by the HTTP endpoint. You can use `jq` to extract this message using the folowing command:
+
+```shell
+➜ grpcurl -plaintext localhost:19090 FakeService.Handle | jq -r .Message
+{
+  "name": "Code",
+  "type": "gRPC",
+  "ip_addresses": [
+    "172.21.166.161"
+  ],
+  "start_time": "2021-12-26T15:05:30.281199",
+  "end_time": "2021-12-26T15:05:30.281257",
+  "duration": "57.889µs",
+  "body": "Hello World",
+  "code": 0
+}
+```
+
+There are a many more advance use cases from linking multiple services together or controlling the response duration or error threshold. These options 
+can be set using environment variables. 
+
 ## Configuration
-Configuration values are set using environment variables, for info please see the following list:
+Configuration values for fake service are set using environment variables, the following is a full list of permissable options:
 
 ```
 Configuration values are set using environment variables, for info please see the following list:
@@ -15,14 +86,16 @@ Configuration values are set using environment variables, for info please see th
 Environment variables:
   UPSTREAM_URIS  default: no default
        Comma separated URIs of the upstream services to call
-  EXTERNAL_SERVICE_URIS  default: no default
-       Comma separated URIs of the external services to call
   UPSTREAM_WORKERS  default: '1'
-       Number of parallel workers for calling upstreams, defualt is 1 which is sequential operation
-  SERVER_TYPE  default: 'http'
-       Service type: [http or grpc], default:http. Determines the type of service HTTP or gRPC
+       Number of parallel workers for calling upstream services, default is 1 which is sequential operation
+  UPSTREAM_REQUEST_BODY  default: no default
+       Request body to send to send with upstream requests, NOTE: UPSTREAM_REQUEST_SIZE and UPSTREAM_REQUEST_VARIANCE are ignored if this is set
+  UPSTREAM_REQUEST_SIZE  default: '0'
+       Size of the randomly generated request body to send with upstream requests
+  UPSTREAM_REQUEST_VARIANCE  default: '0'
+       Percentage variance of the randomly generated request body
   MESSAGE  default: 'Hello World'
-       Message to be returned from service, can either be a string or valid JSON
+       Message to be returned from service, can either be a string or valid JSON. To display content in the UI, valid HTML can be included in this variable.
   NAME  default: 'Service'
        Name of the service
   LISTEN_ADDR  default: '0.0.0.0:9090'
@@ -33,6 +106,16 @@ Environment variables:
        Comma separated list of allowed headers for CORS requests
   ALLOW_CREDENTIALS  default: 'false'
        Are credentials allowed for CORS requests
+  HTTP_SERVER_KEEP_ALIVES  default: 'false'
+       Enables the HTTP servers handling of keep alives.
+  HTTP_SERVER_READ_TIMEOUT  default: '5s'
+       Maximum duration for reading an entire HTTP request, if zero no read timeout is used.
+  HTTP_SERVER_READHEADER_TIMEOUT  default: '0s'
+       Maximum duration for reading the HTTP headers, if zero read timeout is used.
+  HTTP_SERVER_WRITE_TIMEOUT  default: '10s'
+       Maximum duration for writing HTTP body, if zero no write timeout is used.
+  HTTP_SERVER_IDLE_TIMEOUT  default: '30s'
+       Maximum duration to wait for next request when HTTP Keep alives are used.
   HTTP_CLIENT_KEEP_ALIVES  default: 'false'
        Enable HTTP connection keep alives for upstream calls
   HTTP_CLIENT_REQUEST_TIMEOUT  default: '30s'
@@ -96,8 +179,12 @@ Environment variables:
        Response code returned from the HTTP readiness handler `/ready` after the response delay has elapsed
   READY_CHECK_RESPONSE_FAILURE_CODE  default: '503'
        Response code returned from the HTTP readiness handler `/ready` before the response delay has elapsed, this simulates the response code a service would return while starting
+  READY_CHECK_ROOT_PATH_WAIT_TILL_READY  default: 'false'
+       Should the main handler at path `/` or the gRPC method `FakeService` wait for the readiness check to pass before returning a response?
   READY_CHECK_RESPONSE_DELAY  default: '0s'
        Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE
+  RAND_SEED  default: '1637512822'
+       A seed to initialize the random number generators
 ```
 
 ## Tracing
@@ -134,7 +221,7 @@ payments_1  | 2019-08-16T12:15:01.362Z [INFO]  Starting service: name=payments m
 cache_1     | 2019-08-16T12:15:01.439Z [INFO]  Starting service: name=cache message="Cache response" upstreamURIs= upstreamWorkers=1 listenAddress=0.0.0.0:9090 http_client_keep_alives=false zipkin_endpoint=http://jaeger:9411
 ```
 
-Then curl the web endpoint:
+Then curl the HTTP endpoint:
 ```
 ➜ curl -s localhost:9090 | jq
 {
@@ -178,6 +265,7 @@ Then curl the web endpoint:
   ]
 }
 ```
+
 
 Tracing data can be seen using Jaeger which is running at `http://localhost:16686`.
 

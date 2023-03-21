@@ -22,16 +22,20 @@ import (
 
 // FakeServer implements the gRPC interface
 type FakeServer struct {
-	name          string
-	message       string
-	duration      *timing.RequestDuration
-	upstreamURIs  []string
-	workerCount   int
-	defaultClient client.HTTP
-	grpcClients   map[string]client.GRPC
-	errorInjector *errors.Injector
-	loadGenerator *load.Generator
-	log           *logging.Logger
+	api.UnimplementedFakeServiceServer
+	name             string
+	message          string
+	duration         *timing.RequestDuration
+	upstreamURIs     []string
+	workerCount      int
+	defaultClient    client.HTTP
+	grpcClients      map[string]client.GRPC
+	errorInjector    *errors.Injector
+	loadGenerator    *load.Generator
+	log              *logging.Logger
+	requestGenerator load.RequestGenerator
+	waitTillReady    bool
+	readinessHandler *Ready
 }
 
 // NewFakeServer creates a new instance of FakeServer
@@ -45,24 +49,35 @@ func NewFakeServer(
 	i *errors.Injector,
 	loadGenerator *load.Generator,
 	l *logging.Logger,
+	requestGenerator load.RequestGenerator,
+	waitTillReady bool,
+	readinessHandler *Ready,
 ) *FakeServer {
 
 	return &FakeServer{
-		name:          name,
-		message:       message,
-		duration:      duration,
-		upstreamURIs:  upstreamURIs,
-		workerCount:   workerCount,
-		defaultClient: defaultClient,
-		grpcClients:   grpcClients,
-		errorInjector: i,
-		loadGenerator: loadGenerator,
-		log:           l,
+		UnimplementedFakeServiceServer: api.UnimplementedFakeServiceServer{},
+		name:                           name,
+		message:                        message,
+		duration:                       duration,
+		upstreamURIs:                   upstreamURIs,
+		workerCount:                    workerCount,
+		defaultClient:                  defaultClient,
+		grpcClients:                    grpcClients,
+		errorInjector:                  i,
+		loadGenerator:                  loadGenerator,
+		log:                            l,
+		requestGenerator:               requestGenerator,
+		waitTillReady:                  waitTillReady,
+		readinessHandler:               readinessHandler,
 	}
 }
 
-// Handle implmements the FakeServer Handle interface method
-func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, error) {
+// Handle implements the FakeServer Handle interface method
+func (f *FakeServer) Handle(ctx context.Context, in *api.Request) (*api.Response, error) {
+	if f.waitTillReady && !f.readinessHandler.Complete() {
+		f.log.Log().Info("Service Unavailable")
+		return nil, status.Error(codes.Unavailable, "Server Unavailable")
+	}
 
 	// start timing the service this is used later for the total request time
 	ts := time.Now()
@@ -96,12 +111,13 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 	// if we need to create upstream requests create a worker pool
 	var upstreamError error
 	if len(f.upstreamURIs) > 0 {
+		data := f.requestGenerator.Generate()
 		wp := worker.New(f.workerCount, func(uri string) (*response.Response, error) {
 			if strings.HasPrefix(uri, "http://") {
-				return workerHTTP(hq.Span.Context(), uri, f.defaultClient, nil, f.log)
+				return workerHTTP(hq.Span.Context(), uri, f.defaultClient, nil, f.log, data)
 			}
 
-			return workerGRPC(hq.Span.Context(), uri, f.grpcClients, f.log)
+			return workerGRPC(hq.Span.Context(), uri, f.grpcClients, f.log, data)
 		})
 
 		err := wp.Do(f.upstreamURIs)
@@ -114,11 +130,6 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 			resp.AppendUpstream(v.URI, *v.Response)
 		}
 	}
-
-	// service time is equal to the randomised time - the current time take
-	d := f.duration.Calculate()
-	et := time.Now().Sub(ts)
-	rd := d - et
 
 	if upstreamError != nil {
 		resp.Code = int(codes.Internal)
@@ -134,25 +145,25 @@ func (f *FakeServer) Handle(ctx context.Context, in *api.Nil) (*api.Response, er
 		return nil, s.Err()
 	}
 
-	// randomize the time the request takes
-	lp := f.log.SleepService(hq.Span, rd)
-
+	// service time is equal to the randomised time - the current time take
+	d := f.duration.Calculate()
+	et := time.Now().Sub(ts)
+	rd := d - et
 	if rd > 0 {
+		// randomize the time the request takes
+		lp := f.log.SleepService(hq.Span, rd)
 		time.Sleep(rd)
+		lp.Finished()
 	}
-
-	lp.Finished()
 
 	// log response code
 	hq.SetMetadata("response", "0")
 
-	// caculate total elapsed time including duration
+	// compute total elapsed time including duration
 	te := time.Now()
-	et = te.Sub(ts)
-
 	resp.StartTime = ts.Format(timeFormat)
 	resp.EndTime = te.Format(timeFormat)
-	resp.Duration = et.String()
+	resp.Duration = te.Sub(ts).String()
 
 	// add the response body if there is no upstream error
 	if upstreamError == nil {

@@ -12,7 +12,7 @@ import (
 
 // GRPC defines the interface for a GRPC client
 type GRPC interface {
-	Handle(context.Context, *api.Nil) (*api.Response, map[string]string, error)
+	Handle(context.Context, *api.Request) (*api.Response, map[string]string, error)
 }
 
 // NewGRPC creates a new GRPC client
@@ -37,7 +37,7 @@ type GRPCImpl struct {
 }
 
 // Handle calls the upstream client
-func (c *GRPCImpl) Handle(ctx context.Context, n *api.Nil) (*api.Response, map[string]string, error) {
+func (c *GRPCImpl) Handle(ctx context.Context, n *api.Request) (*api.Response, map[string]string, error) {
 	var header, trailer metadata.MD
 
 	resp, err := c.client.Handle(

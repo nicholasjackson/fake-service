@@ -1,0 +1,14 @@
+FROM node:latest AS build-stage
+
+WORKDIR /app
+
+COPY . /app
+
+RUN yarn install && \
+  REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+
+RUN ls -las /app/
+
+FROM scratch AS export-stage
+
+COPY --from=build-stage /app/build /

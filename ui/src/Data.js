@@ -1,7 +1,7 @@
-const startX = 100;
-const startY = 100;
+const startX = 50;
+const startY = 230;
 const incrX = 400;
-const incrY = 300;
+const incrY = 400;
 
 function processNode(node, name, parent, level, index, xStart, yStart) {
   var nodes = [];
@@ -11,6 +11,7 @@ function processNode(node, name, parent, level, index, xStart, yStart) {
     id: node.name + "_" + level.toString() + "_" + index,
     properties: {
       name: node.name,
+      body: node.body,
       upstream_address: name,
       ip_addresses: node.ip_addresses,
       duration: node.duration,

@@ -1,8 +1,11 @@
 package load
 
 import (
+	"fmt"
+	"math"
 	"math/rand"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -17,89 +20,89 @@ type Finished func()
 
 type Generator struct {
 	logger         hclog.Logger
-	cpuCoresCount  float64
+	cpuCoresCount  int
 	cpuPercentage  float64
 	memoryBytes    int
 	memoryVariance int
-	running        bool
-	finished       chan struct{}
 }
 
 // NewGenerator creates a new load generator that can create atrificial memory and cpu pressure
-func NewGenerator(cores, percentage float64, memoryBytes, memoryVariance int, logger hclog.Logger) *Generator {
-	return &Generator{logger, cores, percentage, memoryBytes, memoryVariance, false, nil}
+func NewGenerator(cores int, percentage float64, memoryBytes, memoryVariance int, logger hclog.Logger) *Generator {
+	if percentage < 0 || percentage > 100 {
+		panic(fmt.Errorf("got percentage: %f which is not between 0 and 100", percentage))
+	}
+	return &Generator{logger, cores, percentage, memoryBytes, memoryVariance}
 }
 
 // Generate load for the request
 func (g *Generator) Generate() Finished {
-	// this needs to be a buffered channel or the return function will block and leak
-	g.finished = make(chan struct{}, 2)
-	g.running = true
-
 	// generate the memory first to ensure that the CPU consumption
 	// does not block memory creation
-	g.generateMemory()
-	g.generateCPU()
+	finished := make(chan struct{})
+	wg := sync.WaitGroup{}
+	g.generateMemory(finished, &wg)
+	g.generateCPU(finished, &wg)
 
 	return func() {
 		// call finished twice for memory and CPU
-		g.finished <- struct{}{}
-		g.finished <- struct{}{}
-		g.running = false
+		close(finished)
+		wg.Wait()
 	}
 }
 
 // RunCPULoad run CPU load in specify cores count and percentage
-func (g *Generator) generateCPU() {
-	if g.cpuCoresCount == 0 {
+func (g *Generator) generateCPU(finished chan struct{}, wg *sync.WaitGroup) {
+	if g.cpuCoresCount == 0 || g.cpuPercentage == 0 {
 		return
 	}
 
-	go func() {
-		g.logger.Info("Generating CPU Load", "cores", g.cpuCoresCount, "percentage", g.cpuPercentage)
+	g.logger.Info("Generating CPU Load", "cores", g.cpuCoresCount, "percentage", g.cpuPercentage)
 
-		runtime.GOMAXPROCS(int(g.cpuCoresCount))
+	runtime.GOMAXPROCS(g.cpuCoresCount)
 
-		// second     ,s  * 1
-		// millisecond,ms * 1000
-		// microsecond,μs * 1000 * 1000
-		// nanosecond ,ns * 1000 * 1000 * 1000
+	// second     ,s  * 1
+	// millisecond,ms * 1000
+	// microsecond,μs * 1000 * 1000
+	// nanosecond ,ns * 1000 * 1000 * 1000
 
-		// every loop : run + sleep = 1 unit
+	// every loop : run + sleep = 1 unit
 
-		// 1 unit = 100 ms may be the best
-		var unitHundresOfMicrosecond float64 = 1000
-		runMicrosecond := unitHundresOfMicrosecond * g.cpuPercentage
-		sleepMicrosecond := unitHundresOfMicrosecond*100 - runMicrosecond
-		for i := 0; i < int(g.cpuCoresCount); i++ {
-			go func() {
-				runtime.LockOSThread()
-				// endless loop
-				for g.running {
-					begin := time.Now()
-					for {
-						// run 100%
-						if time.Now().Sub(begin) > time.Duration(runMicrosecond)*time.Microsecond {
-							break
-						}
+	// 1 unit = 100 ms may be the best
+	var unitHundredOfMicrosecond = 1000
+	runMicrosecond := int(math.Round(float64(unitHundredOfMicrosecond) * g.cpuPercentage))
+	sleepMicrosecond := unitHundredOfMicrosecond*100 - runMicrosecond
+	for i := 0; i < g.cpuCoresCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runtime.LockOSThread()
+			// endless loop
+			for {
+				begin := time.Now()
+				for {
+					// run 100%
+					if time.Now().Sub(begin) > time.Duration(runMicrosecond)*time.Microsecond {
+						break
 					}
-					// sleep
-					time.Sleep(time.Duration(sleepMicrosecond) * time.Microsecond)
 				}
-			}()
-		}
-
-		// block until signal to complete load generation is received
-		<-g.finished
-	}()
+				select {
+				case <-finished: // signal to complete load generation is received
+					return
+				case <-time.Tick(time.Duration(sleepMicrosecond) * time.Microsecond): // sleep
+				}
+			}
+		}()
+	}
 }
 
-func (g *Generator) generateMemory() {
+func (g *Generator) generateMemory(finished chan struct{}, wg *sync.WaitGroup) {
 	if g.memoryBytes == 0 {
 		return
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		memLen := g.memoryBytes
 		if g.memoryVariance > 0 {
 			// Varianj
@@ -134,7 +137,7 @@ func (g *Generator) generateMemory() {
 		// block until signal to complete load generation is received
 		// mem should be deallocated when this function completes and will be
 		// garbage collected
-		<-g.finished
+		<-finished
 
 		// clean references
 		mem = nil
