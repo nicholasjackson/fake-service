@@ -60,7 +60,7 @@ jobs:
 
       - name: Get dependencies
         run: |
-          go get -u github.com/gobuffalo/packr/v2/packr2
+          go install github.com/gobuffalo/packr/v2@v2.8.3
           go get -v -t ./...
 
       - name: Unit Test
