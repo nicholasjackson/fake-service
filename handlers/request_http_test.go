@@ -269,7 +269,7 @@ func TestRequestCompletesWithGRPCUpstreams(t *testing.T) {
 	assert.Len(t, mr.UpstreamCalls, 1)
 	assert.Equal(t, "upstream", mr.UpstreamCalls["grpc://test.com"].Name)
 	assert.Equal(t, "grpc://test.com", mr.UpstreamCalls["grpc://test.com"].URI)
-	assert.Equal(t, "abc", mr.UpstreamCalls["grpc://test.com"].Headers["test"])
+	assert.Equal(t, "abc", mr.UpstreamCalls["grpc://test.com"].RequestHeaders["test"])
 }
 
 func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {
@@ -284,7 +284,7 @@ func TestRequestCompletesWithGRPCUpstreamsError(t *testing.T) {
 	h.ServeHTTP(rr, r)
 	mr := response.Response{}
 	mr.FromJSON([]byte(rr.Body.String()))
-	//pretty.Print(mr)
+	// pretty.Print(mr)
 
 	gcMock.AssertCalled(t, "Handle", mock.Anything, mock.Anything)
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
