@@ -12,7 +12,7 @@
     "react-bootstrap": "^2.7.2",
     "react-dom": "^17.0.0",
     "react-google-charts": "^3.0.15",
-    "react-scripts": "5.0.0",
+    "react-scripts": "5.0.1",
     "react-sliding-pane": "^6.1.2",
     "styled-components": "^5.3.9"
   },
