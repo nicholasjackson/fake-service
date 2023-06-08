@@ -3,6 +3,10 @@
 name: Build
 on: [push]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   ui:
     env:
@@ -75,6 +79,10 @@ jobs:
     name: Release Application
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
     if: contains(github.ref, 'dev') || contains(github.ref, 'v')
     steps:
       - uses: actions/checkout@v2
@@ -111,6 +119,21 @@ jobs:
             -t nicholasjackson/fake-service:vm-${GITHUB_REF##*/} \
             -f ./Dockerfile-VM \
             . \
+            --push
+
+      - name: Log in to the Container registry for Github
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build and push Docker Github
+        run: |
+          docker buildx build --platform linux/arm64,linux/amd64 \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_REF##*/} \
+            -f ./Dockerfile \
+            ./bin \
             --push
 
       - name: Zip binaries
