@@ -1,4 +1,4 @@
-FROM alpine:latest as base
+FROM alpine:3.18.3 as base
 
 RUN apk update && apk add ca-certificates curl && rm -rf /var/cache/apk/*
 
