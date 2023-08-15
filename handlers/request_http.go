@@ -28,15 +28,18 @@ type Request struct {
 	// name of the service
 	name string
 	// message to return to caller
-	message       string
-	duration      *timing.RequestDuration
-	upstreamURIs  []string
-	workerCount   int
-	defaultClient client.HTTP
-	grpcClients   map[string]client.GRPC
-	errorInjector *errors.Injector
-	loadGenerator *load.Generator
-	log           *logging.Logger
+	message          string
+	duration         *timing.RequestDuration
+	upstreamURIs     []string
+	workerCount      int
+	defaultClient    client.HTTP
+	grpcClients      map[string]client.GRPC
+	errorInjector    *errors.Injector
+	loadGenerator    *load.Generator
+	log              *logging.Logger
+	requestGenerator load.RequestGenerator
+	waitTillReady    bool
+	readinessHandler *Ready
 }
 
 // NewRequest creates a new request handler
@@ -50,24 +53,36 @@ func NewRequest(
 	errorInjector *errors.Injector,
 	loadGenerator *load.Generator,
 	log *logging.Logger,
+	requestGenerator load.RequestGenerator,
+	waitTillReady bool,
+	readinessHandler *Ready,
 ) *Request {
 
 	return &Request{
-		name:          name,
-		message:       message,
-		duration:      duration,
-		upstreamURIs:  upstreamURIs,
-		workerCount:   workerCount,
-		defaultClient: defaultClient,
-		grpcClients:   grpcClients,
-		errorInjector: errorInjector,
-		loadGenerator: loadGenerator,
-		log:           log,
+		name:             name,
+		message:          message,
+		duration:         duration,
+		upstreamURIs:     upstreamURIs,
+		workerCount:      workerCount,
+		defaultClient:    defaultClient,
+		grpcClients:      grpcClients,
+		errorInjector:    errorInjector,
+		loadGenerator:    loadGenerator,
+		log:              log,
+		requestGenerator: requestGenerator,
+		waitTillReady:    waitTillReady,
+		readinessHandler: readinessHandler,
 	}
 }
 
 // Handle the request and call the upstream servers
-func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
+func (rq *Request) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	if rq.waitTillReady && !rq.readinessHandler.Complete() {
+		rq.log.Log().Info("Service not ready")
+		rw.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+
 	// generate 100% CPU load for service
 	finished := rq.loadGenerator.Generate()
 	defer finished()
@@ -102,12 +117,13 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 	// if we need to create upstream requests create a worker pool
 	var upstreamError error
 	if len(rq.upstreamURIs) > 0 {
+		body := rq.requestGenerator.Generate()
 		wp := worker.New(rq.workerCount, func(uri string) (*response.Response, error) {
-			if strings.HasPrefix(uri, "http://") {
-				return workerHTTP(hq.Span.Context(), uri, rq.defaultClient, r, rq.log)
+			if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
+				return workerHTTP(hq.Span.Context(), uri, rq.defaultClient, r, rq.log, body)
 			}
 
-			return workerGRPC(hq.Span.Context(), uri, rq.grpcClients, rq.log)
+			return workerGRPC(hq.Span.Context(), uri, rq.grpcClients, rq.log, body)
 		})
 
 		err := wp.Do(rq.upstreamURIs)
@@ -121,13 +137,6 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// service time is equal to the randomised time - the current time take
-	d := rq.duration.Calculate()
-	et := time.Now().Sub(ts)
-	rd := d - et
-
-	// set the start end end time
-
 	if upstreamError != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		resp.Code = http.StatusInternalServerError
@@ -136,27 +145,28 @@ func (rq *Request) Handle(rw http.ResponseWriter, r *http.Request) {
 		hq.SetMetadata("response", strconv.Itoa(http.StatusInternalServerError))
 		hq.SetError(upstreamError)
 	} else {
-		// randomize the time the request takes if no error
-		lp := rq.log.SleepService(hq.Span, rd)
-
+		// service time is equal to the randomised time - the current time take
+		d := rq.duration.Calculate()
+		et := time.Now().Sub(ts)
+		rd := d - et
 		if rd > 0 {
+			// randomize the time the request takes if no error
+			lp := rq.log.SleepService(hq.Span, rd)
 			time.Sleep(rd)
+			lp.Finished()
 		}
 
-		lp.Finished()
 		resp.Code = http.StatusOK
 
 		// log response code
 		hq.SetMetadata("response", strconv.Itoa(http.StatusOK))
 	}
 
-	// caclulcate total elapsed time including delay
+	// compute total elapsed time including delay
 	te := time.Now()
-	et = te.Sub(ts)
-
 	resp.StartTime = ts.Format(timeFormat)
 	resp.EndTime = te.Format(timeFormat)
-	resp.Duration = et.String()
+	resp.Duration = te.Sub(ts).String()
 
 	// add the response body
 	if strings.HasPrefix(rq.message, "{") {

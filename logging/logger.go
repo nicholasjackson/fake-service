@@ -62,14 +62,13 @@ func (l *Logger) Log() hclog.Logger {
 }
 
 // LogServiceStarted logs information when the service starts
-func (l *Logger) ServiceStarted(name, upstreamURIs string, upstreamWorkers int, listenAddress, serviceType string) {
+func (l *Logger) ServiceStarted(name, upstreamURIs string, upstreamWorkers int, listenAddress string) {
 	l.log.Info(
-		"Starting service",
+		"Started service",
 		"name", name,
 		"upstreamURIs", upstreamURIs,
 		"upstreamWorkers", fmt.Sprint(upstreamWorkers),
 		"listenAddress", listenAddress,
-		"service type", serviceType,
 	)
 
 	l.metrics.Increment("service.started", nil)
@@ -403,6 +402,18 @@ func (l *Logger) CallHealthHTTP() *LogProcess {
 		finished: func(err error, meta map[string]string) {
 			te := time.Now()
 			l.metrics.Timing("handle.health.http", te.Sub(st), getTags(err, meta))
+		},
+	}
+}
+
+func (l *Logger) CallReadyHTTP() *LogProcess {
+	st := time.Now()
+	l.log.Info("Handling ready request")
+
+	return &LogProcess{
+		finished: func(err error, meta map[string]string) {
+			te := time.Now()
+			l.metrics.Timing("handle.ready.http", te.Sub(st), getTags(err, meta))
 		},
 	}
 }

@@ -1,59 +1,64 @@
-version=v0.17.4
+DOCKER_REGISTRY ?= docker.io/nicholasjackson
+VERSION=v0.23.1
+CONSULBASE=v1.12.2
 
 protos:
-	protoc -I grpc/protos/ grpc/protos/api.proto --go_out=plugins=grpc:grpc/api
+	 protoc --proto_path grpc/protos --go_out=grpc/api --go_opt=paths=source_relative \
+    --go-grpc_out=grpc/api --go-grpc_opt=paths=source_relative \
+    api.proto
 
 # Requires Yarn and Node
 build_ui:
-	cd ui && REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+	cd ui && DOCKER_BUILDKIT=1 docker build -f Dockerfile.build -o build .
 
-# Requires Packr to bundle assets
-build_linux: build_ui
-	packr2 
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/amd64/fake-service
-	packr2 clean
+build_linux:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/linux/amd64/fake-service
 
-build_darwin: build_ui
-	packr2 
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/darwin/fake-service
-	packr2 clean
+build_darwin:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/darwin/amd64/fake-service
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/darwin/arm64/fake-service
 
-build_arm6: build_ui
-	packr2 
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o bin/arm/6/fake-service
-	packr2 clean
+build_arm6:
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o bin/linux/arm6/fake-service
 
-build_arm7: build_ui
-	packr2 
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o bin/arm/7/fake-service
-	packr2 clean
+build_arm7:
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o bin/linux/arm7/fake-service
 
-build_windows: build_ui
-	packr2 
+build_arm64:
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/linux/arm64/fake-service
+
+build_windows:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o bin/windows/fake-service.exe
-	packr2 clean
 
 build_local: build_ui
-	packr2
 	go build -o bin/fake-service
-	packr2 clean
 
-build_docker_vm:
-	docker build -t nicholasjackson/fake-service:vm-${version} -f Dockerfile-VM ./bin
-
-build_docker_multi: build_linux build_arm7 build_arm6
+build_docker_vm:	build_ui build_linux build_arm64
 	docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-	docker buildx create --name multi
+	docker buildx create --name multi || true
 	docker buildx use multi
 	docker buildx inspect --bootstrap
-	docker buildx build --platform linux/arm/v6,linux/arm/v7,linux/amd64 \
-		-t nicholasjackson/fake-service:${version} \
+	docker buildx build --platform linux/arm64,linux/amd64 \
+		-t ${DOCKER_REGISTRY}/fake-service:vm-${CONSULBASE}-${VERSION} \
+		-f ./Dockerfile-VM \
+    . \
+		--push
+	docker buildx rm multi
+
+build_docker_multi: build_linux build_arm64
+	docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+	docker buildx create --name multi || true
+	docker buildx use multi
+	docker buildx inspect --bootstrap
+	docker buildx build --platform linux/arm64,linux/amd64 \
+		-t ${DOCKER_REGISTRY}/fake-service:${VERSION} \
     -f ./Dockerfile \
-    ./bin
+    ./bin \
+		--push
 	docker buildx rm multi
 
 run_downstream:
-	TRACING_ZIPKIN=/dev/null NAME=web HTTP_CLIENT_KEEP_ALIVES=false UPSTREAM_WORKERS=2 UPSTREAM_URIS="http://localhost:9091,grpc://localhost:9094" go run main.go
+	TRACING_ZIPKIN=/dev/null NAME=web HTTP_CLIENT_KEEP_ALIVES=false UPSTREAM_WORKERS=2 UPSTREAM_URIS="http://localhost:9091,grpc://localhost:9094" MESSAGE="This is some text<br/>Some more text too" go run main.go
 
 run_downstream_errors:
 	TRACING_ZIPKIN=/dev/null NAME=web HTTP_CLIENT_KEEP_ALIVES=false ERROR_RATE=1 ERROR_CODE=500 UPSTREAM_WORKERS=2 UPSTREAM_URIS="http://localhost:9091,grpc://localhost:9093" go run main.go

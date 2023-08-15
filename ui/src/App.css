@@ -3,7 +3,8 @@
 }
 
 .App-logo {
-  height: 40vmin;
+  height: 5vmin;
+  margin-right: 10px;
 }
 
 .App-header {
@@ -19,4 +20,22 @@
 
 .App-link {
   color: #09d3ac;
+}
+
+.App-header-text {
+  font-size: calc(3vmin);
+}
+
+.Node-click {
+  padding-top: 20px;
+}
+
+.form-custom {
+  padding-left: 20px;
+  padding-top: 12px;
+  flex-grow: 1;
+}
+
+.form-label {
+  font-weight: bold;
 }

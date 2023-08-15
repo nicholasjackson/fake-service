@@ -9,13 +9,15 @@ import (
 
 // Health defines the health handler for the service
 type Health struct {
-	logger *logging.Logger
+	logger     *logging.Logger
+	statusCode int
 }
 
 // NewHealth creates a new health handler
-func NewHealth(logger *logging.Logger) *Health {
+func NewHealth(logger *logging.Logger, code int) *Health {
 	return &Health{
 		logger,
+		code,
 	}
 }
 
@@ -24,7 +26,12 @@ func (h *Health) Handle(rw http.ResponseWriter, r *http.Request) {
 	hq := h.logger.CallHealthHTTP()
 	defer hq.Finished()
 
-	hq.SetMetadata("response", "200")
+	hq.SetMetadata("response", fmt.Sprintf("%d", h.statusCode))
 
+	rw.WriteHeader(h.statusCode)
 	fmt.Fprint(rw, "OK")
+}
+
+func (h *Health) SetStatusCode(code int) {
+	h.statusCode = code
 }

@@ -1,0 +1,16 @@
+.bottom-panel {
+  position: fixed;
+  bottom: 0;
+  margin:auto;
+  width: 100%;
+  padding:10px;
+  text-align: left;
+}
+
+.bottom-panel-header {
+  font-weight: bold;
+}
+
+.bottom-panel-close-button {
+  align-items: end;
+}
