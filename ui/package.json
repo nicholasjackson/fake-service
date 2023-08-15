@@ -14,7 +14,7 @@
     "react-google-charts": "^3.0.15",
     "react-scripts": "5.0.0",
     "react-sliding-pane": "^6.1.2",
-    "styled-components": "^5.3.9"
+    "styled-components": "^5.3.11"
   },
   "scripts": {
     "start": "react-scripts --openssl-legacy-provider start",
