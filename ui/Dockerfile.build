@@ -5,7 +5,7 @@ WORKDIR /app
 COPY . /app
 
 RUN yarn install && \
-  REACT_APP_API_URI=/ PUBLIC_URL=/ui yarn build
+  REACT_APP_API_URI=../ PUBLIC_URL=. yarn build
 
 RUN ls -las /app/
 

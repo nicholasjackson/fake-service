@@ -185,6 +185,8 @@ Environment variables:
        Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE
   RAND_SEED  default: '1637512822'
        A seed to initialize the random number generators
+  UI_PATH default: '/ui/'
+      The HTTP patht the UI is served from, must contain a trailing '/'
 ```
 
 ## Tracing

@@ -194,7 +194,6 @@ func TestReturnsErrorWithHTTPUpstreamConnectionError(t *testing.T) {
 	assert.Equal(t, "test", mr.Name)
 	assert.Len(t, mr.UpstreamCalls, 1)
 	assert.Equal(t, -1, mr.UpstreamCalls["http://something.com"].Code)
-
 }
 
 func TestReturnsErrorWithHTTPUpstreamHandleError(t *testing.T) {
