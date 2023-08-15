@@ -119,6 +119,8 @@ var readyRootPathWaitTillReady = env.Bool("READY_CHECK_ROOT_PATH_WAIT_TILL_READY
 var readyResponseDelay = env.Duration("READY_CHECK_RESPONSE_DELAY", false, 0*time.Second, "Delay before the readyness check returns the READY_CHECK_RESPONSE_CODE")
 var seed = env.Int("RAND_SEED", false, int(time.Now().Unix()), "A seed to initialize the random number generators")
 
+var uiPath = env.String("UI_PATH", false, "/ui/", "Path to serve the UI from")
+
 var version = "dev"
 
 func main() {
@@ -352,7 +354,7 @@ func createHTTPServer(
 
 	// add the static files
 	logger.Log().Info("Adding handler for UI static files")
-	mux.Handle("/ui/", http.StripPrefix("/ui", http.FileServer(http.FS(&embedFs{}))))
+	mux.Handle(*uiPath, http.StripPrefix(*uiPath, http.FileServer(http.FS(&embedFs{}))))
 
 	// Add the generic health and ready handlers
 	mux.HandleFunc("/health", hh.Handle)
