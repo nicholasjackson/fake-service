@@ -19,14 +19,15 @@ var ErrorDelay = fmt.Errorf("Service delay automatically injected")
 
 // Injector allows errors and ratelmiting to be injected to a service
 type Injector struct {
-	logger          hclog.Logger
-	errorPercentage float64
-	errorCode       int
-	errorType       string
-	errorDelay      time.Duration
-	rateLimitRPS    float64
-	rateLimitBurst  int
-	rateLimitCode   int
+	logger                hclog.Logger
+	errorPercentage       float64
+	errorTriggerThreshold float64
+	errorCode             int
+	errorType             string
+	errorDelay            time.Duration
+	rateLimitRPS          float64
+	rateLimitBurst        int
+	rateLimitCode         int
 
 	limiter      *rate.Limiter
 	requestCount int
@@ -76,7 +77,9 @@ func (e *Injector) Do() *Response {
 	}
 
 	// calculate if we need to throw an error or continue as normal
-	if e.requestCount%int(1/e.errorPercentage) == 0 {
+	e.errorTriggerThreshold += e.errorPercentage
+	if e.errorTriggerThreshold >= 1 {
+		e.errorTriggerThreshold -= 1
 		e.logger.Info("Injecting error", "request_count", e.requestCount, "error_percentage", e.errorPercentage, "error_type", e.errorType)
 
 		// is our error a delay or a timeout
